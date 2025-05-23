@@ -32,7 +32,7 @@ const appointmentFormSchema = z.object({
   courtName: z.string().max(100).optional(),
   caseNumber: z.string().max(50).optional(),
   clientName: z.string().max(100).optional(),
-  assignedLawyerId: z.string().optional(),
+  assignedLawyerId: z.string().optional().or(z.literal('')), // Allow empty string for 'None'
   remindBeforeDays: z.coerce.number().optional(),
   remindOnDayAt: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'Invalid time format (HH:MM).' }).optional().or(z.literal('')),
 });
@@ -64,7 +64,14 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
   });
 
   const processSubmit = (values: AppointmentFormValues) => {
-    onSubmit(values as AppointmentFormData);
+    // Ensure optional fields that are empty strings become undefined if schema expects that,
+    // or keep as empty string if schema allows (like assignedLawyerId here)
+    const processedValues = {
+      ...values,
+      assignedLawyerId: values.assignedLawyerId === "" ? undefined : values.assignedLawyerId,
+      remindOnDayAt: values.remindOnDayAt === "" ? undefined : values.remindOnDayAt,
+    };
+    onSubmit(processedValues as AppointmentFormData);
   };
 
   return (
@@ -156,7 +163,10 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Assign Lawyer (Optional)</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select 
+                  onValueChange={(value) => field.onChange(value === "__NONE__" ? "" : value)} 
+                  value={field.value === "" || field.value === undefined ? "__NONE__" : field.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <UserCheck className="mr-2 h-4 w-4 opacity-50" />
@@ -164,7 +174,7 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                     <SelectItem value="__NONE__">None</SelectItem>
                     {lawyers.map(lawyer => (
                       <SelectItem key={lawyer.id} value={lawyer.id}>
                         {lawyer.name} ({lawyer.email})
@@ -228,14 +238,17 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Remind Before (Days)</FormLabel>
-                <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={field.value?.toString()}>
+                <Select 
+                  onValueChange={(value) => field.onChange(value === "__NONE__" ? undefined : parseInt(value))} 
+                  value={field.value === undefined ? "__NONE__" : field.value?.toString()}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select days" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__NONE__">None</SelectItem>
                     <SelectItem value="1">1 day before</SelectItem>
                     <SelectItem value="2">2 days before</SelectItem>
                     <SelectItem value="3">3 days before</SelectItem>
