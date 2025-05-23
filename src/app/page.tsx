@@ -183,7 +183,7 @@ export default function DashboardPage() {
               mode="single"
               selected={selectedDateForCalendar}
               onSelect={handleDateSelectOnCalendar}
-              className="rounded-md"
+              className="rounded-md w-full"
               classNames={{
                 day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary/90",
                 day_today: "bg-accent/20 text-accent-foreground",
@@ -197,7 +197,7 @@ export default function DashboardPage() {
                     <div className="relative w-full h-full flex items-center justify-center">
                       {props.date.getDate()}
                       {dayHasAppointment && !isSameDay(props.date, selectedDateForCalendar || new Date(0)) && (
-                        <span className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-accent rounded-full"></span>
+                        <span className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-accent rounded-full"></span>
                       )}
                     </div>
                   );
