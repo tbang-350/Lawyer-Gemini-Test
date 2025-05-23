@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Appointment } from '@/types';
+import type { Appointment, Lawyer } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -12,16 +13,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
-import { CalendarDays, Clock, Briefcase, User, Building } from 'lucide-react';
+import { CalendarDays, Clock, Briefcase, User, Building, UserCheck } from 'lucide-react';
 
 interface AppointmentDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   appointments: Appointment[];
   selectedDate: Date | undefined;
+  lawyers: Lawyer[];
 }
 
-export function AppointmentDetailsModal({ isOpen, onClose, appointments, selectedDate }: AppointmentDetailsModalProps) {
+export function AppointmentDetailsModal({ isOpen, onClose, appointments, selectedDate, lawyers }: AppointmentDetailsModalProps) {
   const [detailedAppointment, setDetailedAppointment] = useState<Appointment | null>(null);
 
   useEffect(() => {
@@ -29,11 +31,9 @@ export function AppointmentDetailsModal({ isOpen, onClose, appointments, selecte
       if (appointments.length === 1) {
         setDetailedAppointment(appointments[0]);
       } else {
-        // If multiple, wait for user selection, so reset detailed view initially
         setDetailedAppointment(null);
       }
     } else {
-      // Reset when modal is closed
       setDetailedAppointment(null);
     }
   }, [isOpen, appointments]);
@@ -50,9 +50,14 @@ export function AppointmentDetailsModal({ isOpen, onClose, appointments, selecte
   };
   
   const handleClose = () => {
-    // setDetailedAppointment(null); // This is handled by useEffect on isOpen change
     onClose();
   }
+
+  const getAssignedLawyer = (lawyerId?: string): Lawyer | undefined => {
+    return lawyers.find(l => l.id === lawyerId);
+  }
+
+  const assignedLawyer = currentAppointmentToDisplay ? getAssignedLawyer(currentAppointmentToDisplay.assignedLawyerId) : undefined;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -83,7 +88,7 @@ export function AppointmentDetailsModal({ isOpen, onClose, appointments, selecte
             </ul>
           ) : currentAppointmentToDisplay ? (
             <div className="space-y-4 py-4">
-              {appointments.length > 1 && detailedAppointment && ( // Show back button only if there was a list
+              {appointments.length > 1 && detailedAppointment && (
                  <Button variant="ghost" onClick={handleBackToList} className="mb-2 text-sm">
                    &larr; Back to list
                  </Button>
@@ -115,6 +120,12 @@ export function AppointmentDetailsModal({ isOpen, onClose, appointments, selecte
                   <div className="flex items-center gap-2">
                     <User className="h-5 w-5 text-accent" />
                     <span>Client: {currentAppointmentToDisplay.clientName}</span>
+                  </div>
+                )}
+                {assignedLawyer && (
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="h-5 w-5 text-accent" />
+                    <span>Assigned Lawyer: {assignedLawyer.name} ({assignedLawyer.email})</span>
                   </div>
                 )}
               </div>

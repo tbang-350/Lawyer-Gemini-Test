@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -8,15 +9,16 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { AppointmentForm } from '@/components/forms/AppointmentForm';
-import type { AppointmentFormData } from '@/types';
+import type { AppointmentFormData, Lawyer } from '@/types';
 
 interface AddAppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddAppointment: (data: AppointmentFormData) => void;
+  lawyers: Lawyer[];
 }
 
-export function AddAppointmentModal({ isOpen, onClose, onAddAppointment }: AddAppointmentModalProps) {
+export function AddAppointmentModal({ isOpen, onClose, onAddAppointment, lawyers }: AddAppointmentModalProps) {
   const handleSubmit = (data: AppointmentFormData) => {
     onAddAppointment(data);
     onClose();
@@ -31,7 +33,11 @@ export function AddAppointmentModal({ isOpen, onClose, onAddAppointment }: AddAp
             Fill in the details below to schedule a new court appointment.
           </DialogDescription>
         </DialogHeader>
-        <AppointmentForm onSubmit={handleSubmit} onCancel={onClose} />
+        <AppointmentForm 
+          onSubmit={handleSubmit} 
+          onCancel={onClose} 
+          lawyers={lawyers} 
+        />
       </DialogContent>
     </Dialog>
   );

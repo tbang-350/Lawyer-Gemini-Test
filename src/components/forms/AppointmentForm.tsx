@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,11 +17,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ClockIcon } from 'lucide-react';
+import { CalendarIcon, ClockIcon, UserCheck } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import type { AppointmentFormData } from '@/types';
+import type { AppointmentFormData, Lawyer } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const appointmentFormSchema = z.object({
@@ -31,6 +32,7 @@ const appointmentFormSchema = z.object({
   courtName: z.string().max(100).optional(),
   caseNumber: z.string().max(50).optional(),
   clientName: z.string().max(100).optional(),
+  assignedLawyerId: z.string().optional(),
   remindBeforeDays: z.coerce.number().optional(),
   remindOnDayAt: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'Invalid time format (HH:MM).' }).optional().or(z.literal('')),
 });
@@ -41,9 +43,10 @@ interface AppointmentFormProps {
   onSubmit: (data: AppointmentFormData) => void;
   onCancel: () => void;
   initialData?: Partial<AppointmentFormData>;
+  lawyers: Lawyer[];
 }
 
-export function AppointmentForm({ onSubmit, onCancel, initialData }: AppointmentFormProps) {
+export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: AppointmentFormProps) {
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
@@ -54,13 +57,14 @@ export function AppointmentForm({ onSubmit, onCancel, initialData }: Appointment
       courtName: initialData?.courtName || '',
       caseNumber: initialData?.caseNumber || '',
       clientName: initialData?.clientName || '',
+      assignedLawyerId: initialData?.assignedLawyerId || '',
       remindBeforeDays: initialData?.remindBeforeDays || undefined,
       remindOnDayAt: initialData?.remindOnDayAt || '',
     },
   });
 
   const processSubmit = (values: AppointmentFormValues) => {
-    onSubmit(values as AppointmentFormData); // Type assertion after validation
+    onSubmit(values as AppointmentFormData);
   };
 
   return (
@@ -106,7 +110,7 @@ export function AppointmentForm({ onSubmit, onCancel, initialData }: Appointment
                       mode="single"
                       selected={field.value}
                       onSelect={field.onChange}
-                      disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() -1))} // Disable past dates
+                      disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() -1))}
                       initialFocus
                     />
                   </PopoverContent>
@@ -145,6 +149,35 @@ export function AppointmentForm({ onSubmit, onCancel, initialData }: Appointment
             </FormItem>
           )}
         />
+        
+        <FormField
+            control={form.control}
+            name="assignedLawyerId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Assign Lawyer (Optional)</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <UserCheck className="mr-2 h-4 w-4 opacity-50" />
+                      <SelectValue placeholder="Select a lawyer to notify" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {lawyers.map(lawyer => (
+                      <SelectItem key={lawyer.id} value={lawyer.id}>
+                        {lawyer.name} ({lawyer.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>The selected lawyer will be associated with this appointment.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
         <FormField
           control={form.control}
           name="courtName"
@@ -202,6 +235,7 @@ export function AppointmentForm({ onSubmit, onCancel, initialData }: Appointment
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
+                    <SelectItem value="">None</SelectItem>
                     <SelectItem value="1">1 day before</SelectItem>
                     <SelectItem value="2">2 days before</SelectItem>
                     <SelectItem value="3">3 days before</SelectItem>
