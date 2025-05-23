@@ -392,10 +392,10 @@ export default function DashboardPage() {
               <CardTitle className="text-lg text-primary">Appointments per Lawyer</CardTitle>
               <CardDescription>Total appointments assigned to each lawyer.</CardDescription>
             </CardHeader>
-            <CardContent className="pl-2 pr-6 pb-6"> 
+            <CardContent className="pt-0 px-2 pb-4"> 
               {lawyerAppointmentCounts.length > 0 ? (
-                <ChartContainer config={barChartConfig} className="min-h-[250px] w-full">
-                  <BarChart accessibilityLayer data={lawyerAppointmentCounts} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
+                <ChartContainer config={barChartConfig} className="min-h-[320px] w-full">
+                  <BarChart accessibilityLayer data={lawyerAppointmentCounts} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis
                       dataKey="name"
@@ -416,7 +416,7 @@ export default function DashboardPage() {
                       cursor={{ fill: "hsl(var(--secondary))", radius: 4}}
                       content={<ChartTooltipContent hideLabel indicator="dot" />}
                     />
-                    <Bar dataKey="appointments" fill="var(--color-appointments)" radius={[4, 4, 0, 0]} barSize={30} />
+                    <Bar dataKey="appointments" fill="var(--color-appointments)" radius={[4, 4, 0, 0]} barSize={35} />
                   </BarChart>
                 </ChartContainer>
               ) : (
@@ -429,9 +429,9 @@ export default function DashboardPage() {
               <CardTitle className="text-lg text-primary">Appointment Status</CardTitle>
               <CardDescription>Overview of upcoming vs. completed events.</CardDescription>
             </CardHeader>
-            <CardContent className="pb-6 flex justify-center items-center">
+            <CardContent className="pt-0 flex justify-center items-center pb-4">
               {totalAppointments > 0 ? (
-                <ChartContainer config={pieChartConfig} className="min-h-[250px] w-full aspect-square">
+                <ChartContainer config={pieChartConfig} className="min-h-[320px] w-full aspect-square">
                   <PieChart accessibilityLayer>
                     <ChartTooltip content={<ChartTooltipContent hideLabel nameKey="name" />} />
                     <Pie
@@ -440,8 +440,8 @@ export default function DashboardPage() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={80}
-                      innerRadius={40}
+                      outerRadius={110}
+                      innerRadius={55}
                       labelLine={false}
                       label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
                         const RADIAN = Math.PI / 180;
@@ -449,7 +449,7 @@ export default function DashboardPage() {
                         const x = cx + radius * Math.cos(-midAngle * RADIAN);
                         const y = cy + radius * Math.sin(-midAngle * RADIAN);
                         return (
-                          <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor="middle" dominantBaseline="central" fontSize={12}>
+                          <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor="middle" dominantBaseline="central" fontSize={14}>
                             {`${(percent * 100).toFixed(0)}%`}
                           </text>
                         );
@@ -506,3 +506,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
