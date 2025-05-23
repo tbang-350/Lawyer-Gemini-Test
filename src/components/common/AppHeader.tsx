@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 
 interface AppHeaderProps {
   onAddAppointmentClick: () => void;
-  firmName?: string;
+  firmName?: string | null; // Can be null if not loaded yet
 }
 
 export function AppHeader({ onAddAppointmentClick, firmName }: AppHeaderProps) {

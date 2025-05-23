@@ -10,74 +10,20 @@ import { Calendar } from '@/components/ui/calendar';
 import { AddAppointmentModal } from '@/components/modals/AddAppointmentModal';
 import { AppointmentDetailsModal } from '@/components/modals/AppointmentDetailsModal';
 import { useToast } from "@/hooks/use-toast";
-import { BarChartBig, CalendarCheck, CalendarClock, Users } from 'lucide-react';
+import { BarChartBig, CalendarCheck, CalendarClock, Users, Loader2 } from 'lucide-react';
 import { format, parse, startOfDay, isSameDay } from 'date-fns';
 
-// Helper function to combine date and time string into a Date object
-const combineDateAndTime = (date: Date, time: string): Date => {
-  const [hours, minutes] = time.split(':').map(Number);
-  const newDate = new Date(date); // Create a new Date object to avoid mutating the original
-  newDate.setHours(hours, minutes, 0, 0);
-  return newDate;
-};
+import { getAppointments, addAppointment, updateAppointment, deleteAppointment } from '@/services/appointmentService';
+import { getLawyers } from '@/services/lawyerService';
+import { getFirmDetails } from '@/services/firmService';
+import { combineDateAndTime } from '@/lib/utils';
 
-// Mock Data
-const initialAppointments: Appointment[] = [
-  {
-    id: '1',
-    title: 'Case Hearing: Smith vs. Jones',
-    dateTime: combineDateAndTime(new Date(new Date().setDate(new Date().getDate() + 2)), "10:30"),
-    description: 'Pre-trial hearing for Smith vs. Jones regarding discovery motions.',
-    courtName: 'District Court, Room 3B',
-    caseNumber: 'CV-2023-00123',
-    clientName: 'John Smith',
-    assignedLawyerId: 'lawyer1',
-    formData: { title: 'Case Hearing: Smith vs. Jones', date: new Date(new Date().setDate(new Date().getDate() + 2)), time: "10:30", description: 'Pre-trial hearing for Smith vs. Jones regarding discovery motions.', courtName: 'District Court, Room 3B', caseNumber: 'CV-2023-00123', clientName: 'John Smith', remindBeforeDays: 1, assignedLawyerId: 'lawyer1' }
-  },
-  {
-    id: '2',
-    title: 'Client Meeting: Doe Corp.',
-    dateTime: combineDateAndTime(new Date(new Date().setDate(new Date().getDate() + 5)), "14:00"),
-    description: 'Discussing upcoming merger agreement with Doe Corp. legal team.',
-    clientName: 'Doe Corp.',
-    assignedLawyerId: 'lawyer2',
-    formData: { title: 'Client Meeting: Doe Corp.', date: new Date(new Date().setDate(new Date().getDate() + 5)), time: "14:00", description: 'Discussing upcoming merger agreement with Doe Corp. legal team.', clientName: 'Doe Corp.', remindOnDayAt: "09:00", assignedLawyerId: 'lawyer2' }
-  },
-  {
-    id: '3',
-    title: 'Filing Deadline: State vs. Roe',
-    dateTime: combineDateAndTime(new Date(new Date().setDate(new Date().getDate() + 5)), "17:00"), 
-    description: 'Final day to submit appellate brief for State vs. Roe.',
-    caseNumber: 'CR-2022-00789',
-    formData: { title: 'Filing Deadline: State vs. Roe', date: new Date(new Date().setDate(new Date().getDate() + 5)), time: "17:00", description: 'Final day to submit appellate brief for State vs. Roe.', caseNumber: 'CR-2022-00789', remindBeforeDays: 3, remindOnDayAt: "08:00" }
-  },
-  {
-    id: '4',
-    title: 'Past Appointment: Consultation',
-    dateTime: combineDateAndTime(new Date(new Date().setDate(new Date().getDate() - 3)), "11:00"),
-    description: 'Initial consultation with new client regarding property dispute.',
-    clientName: 'Alice Wonderland',
-    formData: { title: 'Past Appointment: Consultation', date: new Date(new Date().setDate(new Date().getDate() - 3)), time: "11:00", description: 'Initial consultation with new client regarding property dispute.', clientName: 'Alice Wonderland' }
-  }
-];
-
-const mockLawyers: Lawyer[] = [
-  { id: 'lawyer1', name: 'Alice Advocate', email: 'alice@examplefirm.com' },
-  { id: 'lawyer2', name: 'Bob Barrister', email: 'bob@examplefirm.com' },
-  { id: 'lawyer3', name: 'Carol Counselor', email: 'carol@examplefirm.com' },
-];
-
-const mockLawFirm: LawFirm = {
-  name: 'Justice & Associates LLP',
-  address: '123 Legal Lane, Lawsville, LS 45678',
-  phone: '555-0123',
-  email: 'contact@justiceassociates.com'
-};
 
 export default function DashboardPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
-  const [lawyers, setLawyers] = useState<Lawyer[]>(mockLawyers);
-  const [lawFirmInfo, setLawFirmInfo] = useState<LawFirm>(mockLawFirm);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [lawyers, setLawyers] = useState<Lawyer[]>([]);
+  const [lawFirmInfo, setLawFirmInfo] = useState<LawFirm | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [selectedDateForCalendar, setSelectedDateForCalendar] = useState<Date | undefined>(undefined);
   const [dateForModal, setDateForModal] = useState<Date | undefined>(undefined);
@@ -88,6 +34,31 @@ export default function DashboardPage() {
   
   const { toast } = useToast();
 
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [fetchedAppointments, fetchedLawyers, fetchedFirmDetails] = await Promise.all([
+        getAppointments(),
+        getLawyers(),
+        getFirmDetails(),
+      ]);
+      setAppointments(fetchedAppointments);
+      setLawyers(fetchedLawyers);
+      setLawFirmInfo(fetchedFirmDetails);
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+      toast({ title: "Error", description: "Could not load data. Please try again.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   const appointmentsForSelectedDateModal = useMemo(() => {
     if (!dateForModal) return [];
     return appointments.filter(app => 
@@ -95,67 +66,54 @@ export default function DashboardPage() {
     ).sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime());
   }, [dateForModal, appointments]);
 
-  const handleSaveAppointment = (data: AppointmentFormData, id?: string) => {
-    if (id) { // Editing existing appointment
-      setAppointments(prev => 
-        prev.map(app => 
-          app.id === id 
-          ? { 
-              ...app, 
-              title: data.title,
-              dateTime: combineDateAndTime(data.date, data.time),
-              description: data.description || '',
-              courtName: data.courtName,
-              caseNumber: data.caseNumber,
-              clientName: data.clientName,
-              assignedLawyerId: data.assignedLawyerId,
-              formData: data,
-            } 
-          : app
-        ).sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime())
-      );
-      toast({
-        title: "Appointment Updated",
-        description: `"${data.title}" updated successfully.`,
-      });
-    } else { // Adding new appointment
-      const newAppointment: Appointment = {
-        id: new Date().toISOString(), 
-        title: data.title,
-        dateTime: combineDateAndTime(data.date, data.time),
-        description: data.description || '',
-        courtName: data.courtName,
-        caseNumber: data.caseNumber,
-        clientName: data.clientName,
-        assignedLawyerId: data.assignedLawyerId,
-        formData: data, 
-      };
-      setAppointments(prev => [...prev, newAppointment].sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
-      toast({
-        title: "Appointment Added",
-        description: `"${data.title}" scheduled successfully.`,
-      });
+  const handleSaveAppointment = async (data: AppointmentFormData, id?: string) => {
+    try {
+      if (id) { // Editing existing appointment
+        await updateAppointment(id, data);
+        toast({
+          title: "Appointment Updated",
+          description: `"${data.title}" updated successfully.`,
+        });
+      } else { // Adding new appointment
+        await addAppointment(data);
+        toast({
+          title: "Appointment Added",
+          description: `"${data.title}" scheduled successfully.`,
+        });
+      }
+      fetchData(); // Re-fetch all appointments to reflect changes
+      setEditingAppointment(null); 
+    } catch (error) {
+      console.error("Failed to save appointment:", error);
+      toast({ title: "Save Error", description: "Could not save appointment.", variant: "destructive"})
     }
-    setEditingAppointment(null); // Clear editing state
   };
 
   const handleOpenEditModal = (appointment: Appointment) => {
     setEditingAppointment(appointment);
-    setIsDetailsModalOpen(false); // Close details modal
-    setIsAddModalOpen(true); // Open add/edit modal
+    setIsDetailsModalOpen(false);
+    setIsAddModalOpen(true); 
   };
   
-  const handleDeleteAppointment = (appointmentId: string) => {
+  const handleDeleteAppointment = async (appointmentId: string) => {
     const appointmentToDelete = appointments.find(app => app.id === appointmentId);
-    setAppointments(prev => prev.filter(app => app.id !== appointmentId));
-    toast({
-      title: "Appointment Deleted",
-      description: `"${appointmentToDelete?.title}" has been removed.`,
-      variant: "destructive",
-    });
-    setIsDetailsModalOpen(false); // Close details modal if the deleted appointment was shown
-    setDateForModal(undefined); // Clear selected date context if needed
-    setSelectedDateForCalendar(undefined);
+    if (!appointmentToDelete) return;
+
+    try {
+      await deleteAppointment(appointmentId);
+      toast({
+        title: "Appointment Deleted",
+        description: `"${appointmentToDelete.title}" has been removed.`,
+        variant: "destructive",
+      });
+      fetchData(); // Re-fetch to update list
+      setIsDetailsModalOpen(false); 
+      setDateForModal(undefined); 
+      setSelectedDateForCalendar(undefined);
+    } catch (error) {
+      console.error("Failed to delete appointment:", error);
+      toast({ title: "Delete Error", description: "Could not delete appointment.", variant: "destructive"})
+    }
   };
 
 
@@ -207,14 +165,23 @@ export default function DashboardPage() {
     return Array.from(appointmentsByDay.keys()).map(dateStr => parse(dateStr, 'yyyy-MM-dd', new Date()));
   }, [appointmentsByDay]);
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-lg text-muted-foreground">Loading Dashboard...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <AppHeader 
         onAddAppointmentClick={() => {
-          setEditingAppointment(null); // Ensure not in edit mode
+          setEditingAppointment(null); 
           setIsAddModalOpen(true);
         }} 
-        firmName={lawFirmInfo.name}
+        firmName={lawFirmInfo?.name || "Lexis Reminder"}
       />
       
       <div className="container mx-auto px-4 py-8 flex-grow">
@@ -222,7 +189,7 @@ export default function DashboardPage() {
           <StatCard title="Total Appointments" value={totalAppointments} icon={BarChartBig} description="All scheduled events" />
           <StatCard title="Upcoming Appointments" value={upcomingAppointmentsCount} icon={CalendarClock} description="Events yet to occur" />
           <StatCard title="Completed Appointments" value={pastAppointmentsCount} icon={CalendarCheck} description="Events that have passed" />
-          <StatCard title="Attorneys Onboarded" value={lawyers.length} icon={Users} description="Ready to be assigned" />
+          <StatCard title="Attorneys Onboarded" value={lawyers.length} icon={Users} description="Managed in settings" />
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -275,7 +242,7 @@ export default function DashboardPage() {
         isOpen={isAddModalOpen} 
         onClose={() => {
           setIsAddModalOpen(false);
-          setEditingAppointment(null); // Clear editing state on close
+          setEditingAppointment(null);
         }}
         onSaveAppointment={handleSaveAppointment}
         lawyers={lawyers}

@@ -1,11 +1,12 @@
 
 export interface Lawyer {
-  id: string;
+  id: string; // Firestore document ID
   name: string;
   email: string;
 }
 
 export interface LawFirm {
+  id?: string; // Firestore document ID (if we decide to make it a doc, e.g. "main")
   name: string;
   address?: string;
   phone?: string;
@@ -14,27 +15,27 @@ export interface LawFirm {
 
 export interface AppointmentFormData {
   title: string;
-  date: Date;
+  date: Date; // JS Date object
   time: string; // HH:mm format
   description: string;
   courtName?: string;
   caseNumber?: string;
   clientName?: string;
   assignedLawyerId?: string; 
-  // Reminder settings are conceptual for now, actual email sending is out of scope
-  remindBeforeDays?: number; // e.g., 1, 3, 7
-  remindOnDayAt?: string; // HH:mm format, optional
+  remindBeforeDays?: number;
+  remindOnDayAt?: string; 
 }
 
 export interface Appointment {
-  id: string;
+  id: string; // Firestore document ID
   title: string;
-  dateTime: Date;
+  dateTime: Date; // JS Date object (converted from Firestore Timestamp)
   description: string;
   courtName?: string;
   caseNumber?: string;
   clientName?: string;
   assignedLawyerId?: string;
-  // reminder settings from form can be stored if needed for backend processing
-  formData?: AppointmentFormData;
+  formData: AppointmentFormData; // Store the original form data, its 'date' field is a JS Date
+                                // Firestore will convert formData.date to Timestamp automatically on save
+                                // and we'll convert it back to JS Date on fetch.
 }

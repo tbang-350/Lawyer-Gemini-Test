@@ -12,46 +12,65 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Save, Trash2, Loader2 } from 'lucide-react';
 
-// Initial mock data - in a real app, this would come from a data store or API
-const initialMockLawFirm: LawFirm = {
-  name: 'Justice & Associates LLP',
-  address: '123 Legal Lane, Lawsville, LS 45678',
-  phone: '555-0123',
-  email: 'contact@justiceassociates.com'
-};
+import { getLawyers, addLawyer, deleteLawyer } from '@/services/lawyerService';
+import { getFirmDetails, saveFirmDetails } from '@/services/firmService';
 
-const initialMockLawyers: Lawyer[] = [
-  { id: 'lawyer1', name: 'Alice Advocate', email: 'alice@examplefirm.com' },
-  { id: 'lawyer2', name: 'Bob Barrister', email: 'bob@examplefirm.com' },
-  { id: 'lawyer3', name: 'Carol Counselor', email: 'carol@examplefirm.com' },
-];
+const defaultFirmDetails: LawFirm = {
+  name: 'Your Law Firm Name',
+  address: '',
+  phone: '',
+  email: ''
+};
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [firmDetails, setFirmDetails] = useState<LawFirm>(initialMockLawFirm);
-  const [lawyers, setLawyers] = useState<Lawyer[]>(initialMockLawyers);
+  const [firmDetails, setFirmDetails] = useState<LawFirm>(defaultFirmDetails);
+  const [lawyers, setLawyers] = useState<Lawyer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [newLawyerName, setNewLawyerName] = useState('');
   const [newLawyerEmail, setNewLawyerEmail] = useState('');
 
-  const [isClient, setIsClient] = useState(false);
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [fetchedFirmDetails, fetchedLawyers] = await Promise.all([
+        getFirmDetails(),
+        getLawyers()
+      ]);
+      setFirmDetails(fetchedFirmDetails || defaultFirmDetails);
+      setLawyers(fetchedLawyers);
+    } catch (error) {
+      console.error("Failed to fetch settings data:", error);
+      toast({ title: "Error", description: "Could not load settings. Please try again.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setIsClient(true);
+    fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   const handleFirmDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFirmDetails(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSaveFirmDetails = () => {
-    // In a real app, send this to a backend
-    console.log("Firm details saved:", firmDetails);
-    toast({ title: "Firm Details Updated", description: "Successfully saved firm information." });
+  const handleSaveFirmDetails = async () => {
+    try {
+      await saveFirmDetails(firmDetails);
+      toast({ title: "Firm Details Updated", description: "Successfully saved firm information." });
+      fetchData(); // Re-fetch to ensure consistency if needed elsewhere
+    } catch (error) {
+      console.error("Error saving firm details: ", error);
+      toast({ title: "Save Error", description: "Could not save firm details.", variant: "destructive" });
+    }
   };
 
-  const handleAddLawyer = () => {
+  const handleAddLawyer = async () => {
     if (!newLawyerName.trim() || !newLawyerEmail.trim()) {
       toast({ title: "Error", description: "Lawyer name and email cannot be empty.", variant: "destructive" });
       return;
@@ -60,23 +79,44 @@ export default function SettingsPage() {
        toast({ title: "Error", description: "Please enter a valid email address.", variant: "destructive" });
       return;
     }
-    const newLawyer: Lawyer = {
-      id: `lawyer${new Date().getTime()}`, 
-      name: newLawyerName.trim(),
-      email: newLawyerEmail.trim(),
-    };
-    setLawyers(prev => [...prev, newLawyer]);
-    setNewLawyerName('');
-    setNewLawyerEmail('');
-    toast({ title: "Lawyer Added", description: `${newLawyer.name} has been added.` });
+    try {
+      await addLawyer({ name: newLawyerName.trim(), email: newLawyerEmail.trim() });
+      setNewLawyerName('');
+      setNewLawyerEmail('');
+      toast({ title: "Lawyer Added", description: `${newLawyerName.trim()} has been added.` });
+      fetchData(); // Re-fetch lawyers
+    } catch (error) {
+       console.error("Error adding lawyer: ", error);
+       toast({ title: "Add Error", description: "Could not add lawyer.", variant: "destructive" });
+    }
   };
 
-  const handleDeleteLawyer = (lawyerId: string) => {
-    setLawyers(prev => prev.filter(lawyer => lawyer.id !== lawyerId));
-    toast({ title: "Lawyer Removed", description: "Lawyer has been removed." });
+  const handleDeleteLawyer = async (lawyerId: string) => {
+    try {
+      await deleteLawyer(lawyerId);
+      toast({ title: "Lawyer Removed", description: "Lawyer has been removed." });
+      fetchData(); // Re-fetch lawyers
+    } catch (error) {
+      console.error("Error deleting lawyer: ", error);
+      toast({ title: "Delete Error", description: "Could not remove lawyer.", variant: "destructive" });
+    }
   };
   
-  const dummyAddAppointment = () => { console.log("Add appointment clicked from settings - no-op"); };
+  // This is a dummy function because AppHeader requires onAddAppointmentClick
+  // but it's not relevant on the settings page.
+  const dummyAddAppointment = () => { 
+    toast({ title: "Info", description: "Add appointments from the main dashboard."});
+  };
+
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-lg text-muted-foreground">Loading Settings...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -84,88 +124,79 @@ export default function SettingsPage() {
       <div className="container mx-auto px-4 py-8 flex-grow">
         <h1 className="text-3xl font-bold text-primary mb-8">Settings</h1>
 
-        {!isClient && (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-2 text-muted-foreground">Loading settings...</p>
-          </div>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Firm Details Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Firm Details</CardTitle>
+              <CardDescription>Manage your law firm's information.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="firmName">Firm Name</Label>
+                <Input id="firmName" name="name" value={firmDetails.name} onChange={handleFirmDetailsChange} />
+              </div>
+              <div>
+                <Label htmlFor="firmAddress">Address</Label>
+                <Input id="firmAddress" name="address" value={firmDetails.address || ''} onChange={handleFirmDetailsChange} />
+              </div>
+              <div>
+                <Label htmlFor="firmPhone">Phone</Label>
+                <Input id="firmPhone" name="phone" value={firmDetails.phone || ''} onChange={handleFirmDetailsChange} />
+              </div>
+              <div>
+                <Label htmlFor="firmEmail">Email</Label>
+                <Input id="firmEmail" name="email" type="email" value={firmDetails.email || ''} onChange={handleFirmDetailsChange} />
+              </div>
+              <Button onClick={handleSaveFirmDetails} className="w-full">
+                <Save className="mr-2 h-4 w-4" /> Save Firm Details
+              </Button>
+            </CardContent>
+          </Card>
 
-        {isClient && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Firm Details Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">Firm Details</CardTitle>
-                <CardDescription>Manage your law firm's information.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+          {/* Lawyer Management Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Manage Lawyers</CardTitle>
+              <CardDescription>Onboard new lawyers and view existing ones.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 mb-6 p-4 border rounded-md">
+                <h3 className="text-lg font-semibold">Add New Lawyer</h3>
                 <div>
-                  <Label htmlFor="firmName">Firm Name</Label>
-                  <Input id="firmName" name="name" value={firmDetails.name} onChange={handleFirmDetailsChange} />
+                  <Label htmlFor="newLawyerName">Name</Label>
+                  <Input id="newLawyerName" value={newLawyerName} onChange={(e) => setNewLawyerName(e.target.value)} placeholder="e.g., Jane Doe" />
                 </div>
                 <div>
-                  <Label htmlFor="firmAddress">Address</Label>
-                  <Input id="firmAddress" name="address" value={firmDetails.address || ''} onChange={handleFirmDetailsChange} />
+                  <Label htmlFor="newLawyerEmail">Email</Label>
+                  <Input id="newLawyerEmail" type="email" value={newLawyerEmail} onChange={(e) => setNewLawyerEmail(e.target.value)} placeholder="e.g., jane.doe@example.com" />
                 </div>
-                <div>
-                  <Label htmlFor="firmPhone">Phone</Label>
-                  <Input id="firmPhone" name="phone" value={firmDetails.phone || ''} onChange={handleFirmDetailsChange} />
-                </div>
-                <div>
-                  <Label htmlFor="firmEmail">Email</Label>
-                  <Input id="firmEmail" name="email" type="email" value={firmDetails.email || ''} onChange={handleFirmDetailsChange} />
-                </div>
-                <Button onClick={handleSaveFirmDetails} className="w-full">
-                  <Save className="mr-2 h-4 w-4" /> Save Firm Details
+                <Button onClick={handleAddLawyer} className="w-full">
+                  <UserPlus className="mr-2 h-4 w-4" /> Add Lawyer
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Lawyer Management Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">Manage Lawyers</CardTitle>
-                <CardDescription>Onboard new lawyers and view existing ones.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4 mb-6 p-4 border rounded-md">
-                  <h3 className="text-lg font-semibold">Add New Lawyer</h3>
-                  <div>
-                    <Label htmlFor="newLawyerName">Name</Label>
-                    <Input id="newLawyerName" value={newLawyerName} onChange={(e) => setNewLawyerName(e.target.value)} placeholder="e.g., Jane Doe" />
-                  </div>
-                  <div>
-                    <Label htmlFor="newLawyerEmail">Email</Label>
-                    <Input id="newLawyerEmail" type="email" value={newLawyerEmail} onChange={(e) => setNewLawyerEmail(e.target.value)} placeholder="e.g., jane.doe@example.com" />
-                  </div>
-                  <Button onClick={handleAddLawyer} className="w-full">
-                    <UserPlus className="mr-2 h-4 w-4" /> Add Lawyer
-                  </Button>
-                </div>
-
-                <h3 className="text-lg font-semibold mb-2">Current Lawyers ({lawyers.length})</h3>
-                {lawyers.length > 0 ? (
-                  <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                    {lawyers.map(lawyer => (
-                      <li key={lawyer.id} className="flex justify-between items-center p-3 bg-secondary/30 rounded-md">
-                        <div>
-                          <p className="font-medium">{lawyer.name}</p>
-                          <p className="text-sm text-muted-foreground">{lawyer.email}</p>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteLawyer(lawyer.id)} aria-label={`Remove ${lawyer.name}`}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-muted-foreground">No lawyers onboarded yet.</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              <h3 className="text-lg font-semibold mb-2">Current Lawyers ({lawyers.length})</h3>
+              {lawyers.length > 0 ? (
+                <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                  {lawyers.map(lawyer => (
+                    <li key={lawyer.id} className="flex justify-between items-center p-3 bg-secondary/30 rounded-md">
+                      <div>
+                        <p className="font-medium">{lawyer.name}</p>
+                        <p className="text-sm text-muted-foreground">{lawyer.email}</p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteLawyer(lawyer.id)} aria-label={`Remove ${lawyer.name}`}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">No lawyers onboarded yet.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
