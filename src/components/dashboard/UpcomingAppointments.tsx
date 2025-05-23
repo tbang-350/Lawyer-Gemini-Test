@@ -1,3 +1,4 @@
+
 import type { Appointment } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,16 +17,16 @@ export function UpcomingAppointments({ appointments, onAppointmentClick }: Upcom
     .slice(0, 5); // Show next 5
 
   return (
-    <Card className="shadow-lg h-full">
+    <Card className="shadow-lg h-full flex flex-col">
       <CardHeader>
         <CardTitle className="text-lg text-primary">Upcoming Appointments</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-grow overflow-hidden pt-0"> {/* Ensure CardContent can grow and handle overflow for ScrollArea */}
         {upcoming.length === 0 ? (
-          <p className="text-muted-foreground">No upcoming appointments.</p>
+          <p className="text-muted-foreground h-full flex items-center justify-center">No upcoming appointments.</p>
         ) : (
-          <ScrollArea className="h-[300px] pr-4"> {/* Adjust height as needed */}
-            <ul className="space-y-3">
+          <ScrollArea className="h-full pr-4"> {/* ScrollArea takes full height of its parent (CardContent) */}
+            <ul className="space-y-3 py-1"> {/* Added py-1 for a bit of breathing room if list is long and scrollable */}
               {upcoming.map((app) => (
                 <li key={app.id} 
                     className="p-3 border rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors"
