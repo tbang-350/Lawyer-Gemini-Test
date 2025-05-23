@@ -79,11 +79,13 @@ export default function DashboardPage() {
   const [lawyers, setLawyers] = useState<Lawyer[]>(mockLawyers);
   const [lawFirmInfo, setLawFirmInfo] = useState<LawFirm>(mockLawFirm);
 
-  const [selectedDateForCalendar, setSelectedDateForCalendar] = useState<Date | undefined>(undefined); // For calendar display
-  const [dateForModal, setDateForModal] = useState<Date | undefined>(undefined); // For modal context
+  const [selectedDateForCalendar, setSelectedDateForCalendar] = useState<Date | undefined>(undefined);
+  const [dateForModal, setDateForModal] = useState<Date | undefined>(undefined);
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  
   const { toast } = useToast();
 
   const appointmentsForSelectedDateModal = useMemo(() => {
@@ -93,25 +95,69 @@ export default function DashboardPage() {
     ).sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime());
   }, [dateForModal, appointments]);
 
-  const handleAddAppointment = (data: AppointmentFormData) => {
-    const newAppointment: Appointment = {
-      id: new Date().toISOString(), 
-      title: data.title,
-      dateTime: combineDateAndTime(data.date, data.time),
-      description: data.description || '',
-      courtName: data.courtName,
-      caseNumber: data.caseNumber,
-      clientName: data.clientName,
-      assignedLawyerId: data.assignedLawyerId,
-      formData: data, 
-    };
-    setAppointments(prev => [...prev, newAppointment].sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
-    toast({
-      title: "Appointment Added",
-      description: `"${data.title}" scheduled successfully.`,
-      variant: "default",
-    });
+  const handleSaveAppointment = (data: AppointmentFormData, id?: string) => {
+    if (id) { // Editing existing appointment
+      setAppointments(prev => 
+        prev.map(app => 
+          app.id === id 
+          ? { 
+              ...app, 
+              title: data.title,
+              dateTime: combineDateAndTime(data.date, data.time),
+              description: data.description || '',
+              courtName: data.courtName,
+              caseNumber: data.caseNumber,
+              clientName: data.clientName,
+              assignedLawyerId: data.assignedLawyerId,
+              formData: data,
+            } 
+          : app
+        ).sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime())
+      );
+      toast({
+        title: "Appointment Updated",
+        description: `"${data.title}" updated successfully.`,
+      });
+    } else { // Adding new appointment
+      const newAppointment: Appointment = {
+        id: new Date().toISOString(), 
+        title: data.title,
+        dateTime: combineDateAndTime(data.date, data.time),
+        description: data.description || '',
+        courtName: data.courtName,
+        caseNumber: data.caseNumber,
+        clientName: data.clientName,
+        assignedLawyerId: data.assignedLawyerId,
+        formData: data, 
+      };
+      setAppointments(prev => [...prev, newAppointment].sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime()));
+      toast({
+        title: "Appointment Added",
+        description: `"${data.title}" scheduled successfully.`,
+      });
+    }
+    setEditingAppointment(null); // Clear editing state
   };
+
+  const handleOpenEditModal = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    setIsDetailsModalOpen(false); // Close details modal
+    setIsAddModalOpen(true); // Open add/edit modal
+  };
+  
+  const handleDeleteAppointment = (appointmentId: string) => {
+    const appointmentToDelete = appointments.find(app => app.id === appointmentId);
+    setAppointments(prev => prev.filter(app => app.id !== appointmentId));
+    toast({
+      title: "Appointment Deleted",
+      description: `"${appointmentToDelete?.title}" has been removed.`,
+      variant: "destructive",
+    });
+    setIsDetailsModalOpen(false); // Close details modal if the deleted appointment was shown
+    setDateForModal(undefined); // Clear selected date context if needed
+    setSelectedDateForCalendar(undefined);
+  };
+
 
   const handleDateSelectOnCalendar = (date: Date | undefined) => {
     if (!date) {
@@ -164,7 +210,10 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <AppHeader 
-        onAddAppointmentClick={() => setIsAddModalOpen(true)} 
+        onAddAppointmentClick={() => {
+          setEditingAppointment(null); // Ensure not in edit mode
+          setIsAddModalOpen(true);
+        }} 
         firmName={lawFirmInfo.name}
       />
       
@@ -177,23 +226,23 @@ export default function DashboardPage() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-card p-6 rounded-lg shadow-lg flex flex-col"> {/* Added flex flex-col */}
+          <div className="lg:col-span-2 bg-card p-6 rounded-lg shadow-lg flex flex-col">
             <h2 className="text-xl font-semibold text-primary mb-4">Appointment Calendar</h2>
-            <div className="flex-grow"> {/* Added flex-grow wrapper for calendar */}
+            <div className="flex-grow">
               <Calendar
                 mode="single"
                 selected={selectedDateForCalendar}
                 onSelect={handleDateSelectOnCalendar}
-                className="rounded-md w-full h-full" // Added h-full
+                className="rounded-md w-full h-full"
                 classNames={{
                   months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
-                  month: "space-y-4 w-full flex-grow flex flex-col", // Added w-full and flex properties
-                  table: "w-full border-collapse flex-grow", // Added flex-grow
+                  month: "space-y-4 w-full flex-grow flex flex-col", 
+                  table: "w-full border-collapse flex-grow", 
                   head_row: "flex w-full",
-                  head_cell: "text-muted-foreground rounded-md font-normal text-[0.8rem] flex-1 text-center", // Added flex-1
-                  row: "flex w-full mt-1 space-x-1 flex-grow", // Added space-x-1 and flex-grow
-                  cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1 rounded-md aspect-square", // Added flex-1 and aspect-square for better sizing
-                  day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md", // Adjusted for flex
+                  head_cell: "text-muted-foreground rounded-md font-normal text-[0.8rem] flex-1 text-center",
+                  row: "flex w-full mt-1 space-x-1 flex-grow", 
+                  cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1 rounded-md aspect-square", 
+                  day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md",
                   day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary/90",
                   day_today: "bg-accent/20 text-accent-foreground",
                 }}
@@ -206,7 +255,7 @@ export default function DashboardPage() {
                       <div className="relative w-full h-full flex items-center justify-center">
                         {props.date.getDate()}
                         {dayHasAppointment && !isSelected && (
-                          <span className="absolute bottom-1.5 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-accent rounded-full border-2 border-card"></span>
+                          <span className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2.5 h-2.5 bg-accent rounded-full border-2 border-card"></span>
                         )}
                       </div>
                     );
@@ -224,9 +273,14 @@ export default function DashboardPage() {
 
       <AddAppointmentModal 
         isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)}
-        onAddAppointment={handleAddAppointment}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditingAppointment(null); // Clear editing state on close
+        }}
+        onSaveAppointment={handleSaveAppointment}
         lawyers={lawyers}
+        initialData={editingAppointment?.formData}
+        editingAppointmentId={editingAppointment?.id}
       />
       {dateForModal && (
         <AppointmentDetailsModal 
@@ -237,10 +291,10 @@ export default function DashboardPage() {
           appointments={appointmentsForSelectedDateModal}
           selectedDate={dateForModal}
           lawyers={lawyers}
+          onEdit={handleOpenEditModal}
+          onDeleteConfirmation={handleDeleteAppointment}
         />
       )}
     </div>
   );
 }
-
-    

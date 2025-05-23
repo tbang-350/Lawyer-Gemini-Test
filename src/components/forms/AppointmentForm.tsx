@@ -32,8 +32,8 @@ const appointmentFormSchema = z.object({
   courtName: z.string().max(100).optional(),
   caseNumber: z.string().max(50).optional(),
   clientName: z.string().max(100).optional(),
-  assignedLawyerId: z.string().optional().or(z.literal('')), // Allow empty string for 'None'
-  remindBeforeDays: z.coerce.number().optional(),
+  assignedLawyerId: z.string().optional().or(z.literal('')), 
+  remindBeforeDays: z.coerce.number().int().min(1).optional(),
   remindOnDayAt: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'Invalid time format (HH:MM).' }).optional().or(z.literal('')),
 });
 
@@ -44,9 +44,10 @@ interface AppointmentFormProps {
   onCancel: () => void;
   initialData?: Partial<AppointmentFormData>;
   lawyers: Lawyer[];
+  submitButtonText?: string;
 }
 
-export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: AppointmentFormProps) {
+export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers, submitButtonText = "Save Appointment" }: AppointmentFormProps) {
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
     defaultValues: {
@@ -63,13 +64,45 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
     },
   });
 
+  // Watch for changes in initialData to reset form if it changes (e.g., when switching from add to edit)
+  React.useEffect(() => {
+    if (initialData) {
+      form.reset({
+        title: initialData.title || '',
+        date: initialData.date || new Date(),
+        time: initialData.time || format(new Date(), 'HH:mm'),
+        description: initialData.description || '',
+        courtName: initialData.courtName || '',
+        caseNumber: initialData.caseNumber || '',
+        clientName: initialData.clientName || '',
+        assignedLawyerId: initialData.assignedLawyerId || '',
+        remindBeforeDays: initialData.remindBeforeDays || undefined,
+        remindOnDayAt: initialData.remindOnDayAt || '',
+      });
+    } else {
+        // Reset to default for new appointment
+        form.reset({
+            title: '',
+            date: new Date(),
+            time: format(new Date(), 'HH:mm'),
+            description: '',
+            courtName: '',
+            caseNumber: '',
+            clientName: '',
+            assignedLawyerId: '',
+            remindBeforeDays: undefined,
+            remindOnDayAt: '',
+        });
+    }
+  }, [initialData, form]);
+
+
   const processSubmit = (values: AppointmentFormValues) => {
-    // Ensure optional fields that are empty strings become undefined if schema expects that,
-    // or keep as empty string if schema allows (like assignedLawyerId here)
     const processedValues = {
       ...values,
       assignedLawyerId: values.assignedLawyerId === "" ? undefined : values.assignedLawyerId,
       remindOnDayAt: values.remindOnDayAt === "" ? undefined : values.remindOnDayAt,
+      remindBeforeDays: values.remindBeforeDays === 0 ? undefined : values.remindBeforeDays, // ensure 0 is treated as undefined if that's the intent
     };
     onSubmit(processedValues as AppointmentFormData);
   };
@@ -195,7 +228,7 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
             <FormItem>
               <FormLabel>Court Name / Location (Optional)</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Supreme Court, Room 101" {...field} />
+                <Input placeholder="e.g., Supreme Court, Room 101" {...field} value={field.value || ''}/>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -209,7 +242,7 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
               <FormItem>
                 <FormLabel>Case Number (Optional)</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., CV-2024-123" {...field} />
+                  <Input placeholder="e.g., CV-2024-123" {...field} value={field.value || ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -222,7 +255,7 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
               <FormItem>
                 <FormLabel>Client Name (Optional)</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., John Doe" {...field} />
+                  <Input placeholder="e.g., John Doe" {...field} value={field.value || ''}/>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -240,7 +273,7 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
                 <FormLabel>Remind Before (Days)</FormLabel>
                 <Select 
                   onValueChange={(value) => field.onChange(value === "__NONE__" ? undefined : parseInt(value))} 
-                  value={field.value === undefined ? "__NONE__" : field.value?.toString()}
+                  value={field.value === undefined || field.value === null ? "__NONE__" : field.value?.toString()}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -268,7 +301,7 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
                 <FormLabel>Remind on Day At (Time)</FormLabel>
                 <FormControl>
                    <div className="relative">
-                    <Input type="time" {...field} className="pr-8" />
+                    <Input type="time" {...field} className="pr-8" value={field.value || ''} />
                     <ClockIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                   </div>
                 </FormControl>
@@ -284,7 +317,7 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers }: Ap
             Cancel
           </Button>
           <Button type="submit" variant="default">
-            Save Appointment
+            {submitButtonText}
           </Button>
         </div>
       </form>

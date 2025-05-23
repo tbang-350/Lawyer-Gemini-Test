@@ -9,11 +9,23 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
-import { CalendarDays, Clock, Briefcase, User, Building, UserCheck, BellRing } from 'lucide-react';
+import { CalendarDays, Clock, Briefcase, User, Building, UserCheck, BellRing, Edit3, Trash2 } from 'lucide-react';
 
 interface AppointmentDetailsModalProps {
   isOpen: boolean;
@@ -21,23 +33,47 @@ interface AppointmentDetailsModalProps {
   appointments: Appointment[];
   selectedDate: Date | undefined;
   lawyers: Lawyer[];
+  onEdit: (appointment: Appointment) => void;
+  onDeleteConfirmation: (appointmentId: string) => void;
 }
 
-export function AppointmentDetailsModal({ isOpen, onClose, appointments, selectedDate, lawyers }: AppointmentDetailsModalProps) {
+export function AppointmentDetailsModal({ 
+  isOpen, 
+  onClose, 
+  appointments, 
+  selectedDate, 
+  lawyers,
+  onEdit,
+  onDeleteConfirmation
+}: AppointmentDetailsModalProps) {
   const [detailedAppointment, setDetailedAppointment] = useState<Appointment | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       if (appointments.length === 1) {
         setDetailedAppointment(appointments[0]);
       } else {
-        setDetailedAppointment(null);
+        // If multiple appointments, initially show list unless one was already detailed
+        // This part can be tricky if the modal re-opens for the same date
+        // For simplicity, if it's a new open or date change, reset detailedAppointment
+        // if (!detailedAppointment || (detailedAppointment && !appointments.find(app => app.id === detailedAppointment.id))) {
+        //    setDetailedAppointment(null);
+        // }
       }
     } else {
-      setDetailedAppointment(null);
+      setDetailedAppointment(null); // Reset when modal closes
+    }
+  }, [isOpen, appointments]); // Removed detailedAppointment from dep array to avoid loops on selection
+  
+  // Explicitly set detailed appointment if only one
+  useEffect(() => {
+    if (isOpen && appointments.length === 1) {
+        setDetailedAppointment(appointments[0]);
     }
   }, [isOpen, appointments]);
-  
+
+
   const showList = appointments.length > 1 && !detailedAppointment;
   const currentAppointmentToDisplay = detailedAppointment || (appointments.length === 1 ? appointments[0] : null);
   
@@ -50,14 +86,48 @@ export function AppointmentDetailsModal({ isOpen, onClose, appointments, selecte
   };
   
   const handleClose = () => {
+    setDetailedAppointment(null); // Ensure detailed view is reset
     onClose();
   }
+
+  const handleEditClick = () => {
+    if (currentAppointmentToDisplay) {
+      onEdit(currentAppointmentToDisplay);
+      // No need to call onClose() here, as the parent will close this modal
+      // and open the edit modal.
+    }
+  };
+
+  const handleDeleteConfirm = () => {
+    if (currentAppointmentToDisplay) {
+      onDeleteConfirmation(currentAppointmentToDisplay.id);
+    }
+    setIsDeleteDialogOpen(false); // Close alert dialog
+    // onClose(); // Parent will handle closing this modal if needed after delete
+  };
+
 
   const getAssignedLawyer = (lawyerId?: string): Lawyer | undefined => {
     return lawyers.find(l => l.id === lawyerId);
   }
 
   const assignedLawyer = currentAppointmentToDisplay ? getAssignedLawyer(currentAppointmentToDisplay.assignedLawyerId) : undefined;
+
+  const reminderText = () => {
+    if (!currentAppointmentToDisplay || !currentAppointmentToDisplay.formData) return null;
+    
+    const { remindBeforeDays, remindOnDayAt } = currentAppointmentToDisplay.formData;
+    if (!remindBeforeDays && !remindOnDayAt) return null;
+
+    let reminders = [];
+    if (remindBeforeDays) {
+      reminders.push(`Set for ${remindBeforeDays} day(s) before.`);
+    }
+    if (remindOnDayAt) {
+      reminders.push(`Set for appointment day at ${remindOnDayAt}.`);
+    }
+    return reminders.join(' ');
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -67,6 +137,7 @@ export function AppointmentDetailsModal({ isOpen, onClose, appointments, selecte
             {selectedDate ? `Appointments for ${format(selectedDate, 'PPP')}` : 'Appointment Details'}
           </DialogTitle>
           {showList && <DialogDescription>Select an appointment to view details.</DialogDescription>}
+          {!showList && !currentAppointmentToDisplay && <DialogDescription>No appointment selected.</DialogDescription>}
         </DialogHeader>
         
         <ScrollArea className="flex-grow pr-2">
@@ -89,7 +160,7 @@ export function AppointmentDetailsModal({ isOpen, onClose, appointments, selecte
           ) : currentAppointmentToDisplay ? (
             <div className="space-y-4 py-4">
               {appointments.length > 1 && detailedAppointment && (
-                 <Button variant="ghost" onClick={handleBackToList} className="mb-2 text-sm">
+                 <Button variant="ghost" onClick={handleBackToList} className="mb-0 text-sm h-auto py-1 px-2">
                    &larr; Back to list
                  </Button>
               )}
@@ -138,34 +209,54 @@ export function AppointmentDetailsModal({ isOpen, onClose, appointments, selecte
                   </p>
                 </div>
               )}
-              {currentAppointmentToDisplay.formData && (currentAppointmentToDisplay.formData.remindBeforeDays || currentAppointmentToDisplay.formData.remindOnDayAt) && (
+              
+              {reminderText() && (
                 <div className="mt-3 pt-3 border-t">
-                  <div className="flex items-center gap-2 mb-2">
-                    <BellRing className="h-5 w-5 text-accent" />
-                    <h3 className="font-semibold text-md text-foreground">Reminder Settings:</h3>
+                  <div className="flex items-start gap-2">
+                    <BellRing className="h-5 w-5 text-accent mt-0.5 shrink-0" />
+                    <div>
+                        <h3 className="font-semibold text-md text-foreground leading-tight">Reminder:</h3>
+                        <p className="text-sm text-muted-foreground">Scheduled. {reminderText()}</p>
+                    </div>
                   </div>
-                  <ul className="text-sm text-muted-foreground list-disc list-inside pl-5 space-y-1">
-                    {currentAppointmentToDisplay.formData.remindBeforeDays && (
-                      <li>
-                        Email reminder set for {currentAppointmentToDisplay.formData.remindBeforeDays} day(s) before the appointment.
-                      </li>
-                    )}
-                    {currentAppointmentToDisplay.formData.remindOnDayAt && (
-                      <li>
-                        Email reminder set for the day of the appointment at {currentAppointmentToDisplay.formData.remindOnDayAt}.
-                      </li>
-                    )}
-                  </ul>
                 </div>
               )}
+
             </div>
           ) : (
-            <p className="py-4 text-muted-foreground">No appointments for this day, or no appointment selected.</p>
+             !showList && <p className="py-4 text-muted-foreground">Select an appointment to see details or no appointments for this day.</p>
           )}
         </ScrollArea>
-        <div className="pt-4 border-t mt-auto">
-            <Button variant="outline" onClick={handleClose} className="w-full">Close</Button>
-        </div>
+        <DialogFooter className="pt-4 border-t mt-auto flex flex-row justify-between w-full">
+            {currentAppointmentToDisplay && (
+              <div className="flex gap-2">
+                 <Button variant="outline" onClick={handleEditClick}>
+                    <Edit3 className="mr-2 h-4 w-4" /> Edit
+                  </Button>
+                <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="mr-2 h-4 w-4" /> Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the appointment
+                        "{currentAppointmentToDisplay?.title}".
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+            <Button variant="outline" onClick={handleClose} className={!currentAppointmentToDisplay ? 'w-full' : ''}>Close</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
