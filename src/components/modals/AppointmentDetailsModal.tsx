@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
-import { CalendarDays, Clock, Briefcase, User, Building, UserCheck } from 'lucide-react';
+import { CalendarDays, Clock, Briefcase, User, Building, UserCheck, BellRing } from 'lucide-react';
 
 interface AppointmentDetailsModalProps {
   isOpen: boolean;
@@ -138,13 +138,24 @@ export function AppointmentDetailsModal({ isOpen, onClose, appointments, selecte
                   </p>
                 </div>
               )}
-              {currentAppointmentToDisplay.formData?.remindBeforeDays && (
+              {currentAppointmentToDisplay.formData && (currentAppointmentToDisplay.formData.remindBeforeDays || currentAppointmentToDisplay.formData.remindOnDayAt) && (
                 <div className="mt-3 pt-3 border-t">
-                  <h3 className="font-semibold text-md text-foreground mb-1">Reminder Settings (from form):</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Remind {currentAppointmentToDisplay.formData.remindBeforeDays} day(s) before.
-                    {currentAppointmentToDisplay.formData.remindOnDayAt && ` And on the day at ${currentAppointmentToDisplay.formData.remindOnDayAt}.`}
-                  </p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <BellRing className="h-5 w-5 text-accent" />
+                    <h3 className="font-semibold text-md text-foreground">Reminder Settings:</h3>
+                  </div>
+                  <ul className="text-sm text-muted-foreground list-disc list-inside pl-5 space-y-1">
+                    {currentAppointmentToDisplay.formData.remindBeforeDays && (
+                      <li>
+                        Email reminder set for {currentAppointmentToDisplay.formData.remindBeforeDays} day(s) before the appointment.
+                      </li>
+                    )}
+                    {currentAppointmentToDisplay.formData.remindOnDayAt && (
+                      <li>
+                        Email reminder set for the day of the appointment at {currentAppointmentToDisplay.formData.remindOnDayAt}.
+                      </li>
+                    )}
+                  </ul>
                 </div>
               )}
             </div>
