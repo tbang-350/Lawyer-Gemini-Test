@@ -1,6 +1,7 @@
 
 'use client';
 
+import React from 'react'; // Added React import
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -32,7 +33,7 @@ const appointmentFormSchema = z.object({
   courtName: z.string().max(100).optional(),
   caseNumber: z.string().max(50).optional(),
   clientName: z.string().max(100).optional(),
-  assignedLawyerId: z.string().optional().or(z.literal('')), 
+  assignedLawyerId: z.string().optional().or(z.literal('')),
   remindBeforeDays: z.coerce.number().int().min(1).optional(),
   remindOnDayAt: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'Invalid time format (HH:MM).' }).optional().or(z.literal('')),
 });
@@ -98,13 +99,20 @@ export function AppointmentForm({ onSubmit, onCancel, initialData, lawyers, subm
 
 
   const processSubmit = (values: AppointmentFormValues) => {
-    const processedValues = {
+    const processedValues: AppointmentFormData = {
       ...values,
-      assignedLawyerId: values.assignedLawyerId === "" ? undefined : values.assignedLawyerId,
+      // Ensure empty strings for optional fields are converted to undefined if that's the desired backend representation
+      // or keep them as empty strings if the backend handles that.
+      // For now, let's assume undefined is preferred for truly optional fields not set.
+      description: values.description || undefined,
+      courtName: values.courtName || undefined,
+      caseNumber: values.caseNumber || undefined,
+      clientName: values.clientName || undefined,
+      assignedLawyerId: values.assignedLawyerId === "" || values.assignedLawyerId === "__NONE__" ? undefined : values.assignedLawyerId,
       remindOnDayAt: values.remindOnDayAt === "" ? undefined : values.remindOnDayAt,
-      remindBeforeDays: values.remindBeforeDays === 0 ? undefined : values.remindBeforeDays, // ensure 0 is treated as undefined if that's the intent
+      remindBeforeDays: values.remindBeforeDays === 0 || values.remindBeforeDays === undefined ? undefined : values.remindBeforeDays,
     };
-    onSubmit(processedValues as AppointmentFormData);
+    onSubmit(processedValues);
   };
 
   return (
