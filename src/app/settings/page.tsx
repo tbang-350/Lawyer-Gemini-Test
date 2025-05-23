@@ -32,16 +32,14 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [firmDetails, setFirmDetails] = useState<LawFirm>(initialFirmDetails);
   const [lawyers, setLawyers] = useState<Lawyer[]>(initialLawyers);
-  // const [isLoading, setIsLoading] = useState(true); // No longer needed for mock
+  const [isClient, setIsClient] = useState(false); // For client-side rendering
 
   const [newLawyerName, setNewLawyerName] = useState('');
   const [newLawyerEmail, setNewLawyerEmail] = useState('');
 
-  // No fetchData needed for mock data
-  // useEffect(() => {
-  //   fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, []);
+  useEffect(() => {
+    setIsClient(true); // Set to true after component mounts
+  }, []);
 
 
   const handleFirmDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,15 +99,14 @@ export default function SettingsPage() {
     toast({ title: "Info", description: "Add appointments from the main dashboard."});
   };
 
-  // No isLoading UI for mock data
-  // if (isLoading) {
-  //   return (
-  //     <div className="flex flex-col min-h-screen bg-background items-center justify-center">
-  //       <Loader2 className="h-12 w-12 animate-spin text-primary" />
-  //       <p className="mt-4 text-lg text-muted-foreground">Loading Settings...</p>
-  //     </div>
-  //   );
-  // }
+  if (!isClient) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-lg text-muted-foreground">Loading Settings...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
