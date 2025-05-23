@@ -1,5 +1,6 @@
 
-import { Scale, PlusCircle, Building } from 'lucide-react';
+import Link from 'next/link';
+import { Scale, PlusCircle, Building, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface AppHeaderProps {
@@ -23,11 +24,20 @@ export function AppHeader({ onAddAppointmentClick, firmName }: AppHeaderProps) {
             </div>
           )}
         </div>
-        <Button onClick={onAddAppointmentClick} variant="default">
-          <PlusCircle className="mr-2 h-5 w-5" />
-          Add Appointment
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={onAddAppointmentClick} variant="default">
+            <PlusCircle className="mr-2 h-5 w-5" />
+            Add Appointment
+          </Button>
+          <Link href="/settings" passHref>
+            <Button variant="outline" size="icon" aria-label="Settings">
+              <Settings className="h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
       </div>
     </header>
   );
 }
+
+    

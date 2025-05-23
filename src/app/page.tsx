@@ -10,7 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { AddAppointmentModal } from '@/components/modals/AddAppointmentModal';
 import { AppointmentDetailsModal } from '@/components/modals/AppointmentDetailsModal';
 import { useToast } from "@/hooks/use-toast";
-import { BarChartBig, CalendarCheck, CalendarClock, ListChecks, Users } from 'lucide-react';
+import { BarChartBig, CalendarCheck, CalendarClock, Users } from 'lucide-react';
 import { format, parse, startOfDay, isSameDay } from 'date-fns';
 
 // Helper function to combine date and time string into a Date object
@@ -177,33 +177,43 @@ export default function DashboardPage() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-card p-6 rounded-lg shadow-lg">
+          <div className="lg:col-span-2 bg-card p-6 rounded-lg shadow-lg flex flex-col"> {/* Added flex flex-col */}
             <h2 className="text-xl font-semibold text-primary mb-4">Appointment Calendar</h2>
-            <Calendar
-              mode="single"
-              selected={selectedDateForCalendar}
-              onSelect={handleDateSelectOnCalendar}
-              className="rounded-md w-full"
-              classNames={{
-                day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary/90",
-                day_today: "bg-accent/20 text-accent-foreground",
-                day: "h-10 w-10 p-0 font-normal aria-selected:opacity-100", 
-              }}
-              modifiers={{ hasAppointmentMarker: daysWithAppointmentsForCalendarModifier }}
-              components={{
-                DayContent: (props) => {
-                  const dayHasAppointment = daysWithAppointmentsForCalendarModifier.some(d => isSameDay(d, props.date));
-                  return (
-                    <div className="relative w-full h-full flex items-center justify-center">
-                      {props.date.getDate()}
-                      {dayHasAppointment && !isSameDay(props.date, selectedDateForCalendar || new Date(0)) && (
-                        <span className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-accent rounded-full"></span>
-                      )}
-                    </div>
-                  );
-                }
-              }}
-            />
+            <div className="flex-grow"> {/* Added flex-grow wrapper for calendar */}
+              <Calendar
+                mode="single"
+                selected={selectedDateForCalendar}
+                onSelect={handleDateSelectOnCalendar}
+                className="rounded-md w-full h-full" // Added h-full
+                classNames={{
+                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
+                  month: "space-y-4 w-full flex-grow flex flex-col", // Added w-full and flex properties
+                  table: "w-full border-collapse flex-grow", // Added flex-grow
+                  head_row: "flex w-full",
+                  head_cell: "text-muted-foreground rounded-md font-normal text-[0.8rem] flex-1 text-center", // Added flex-1
+                  row: "flex w-full mt-1 space-x-1 flex-grow", // Added space-x-1 and flex-grow
+                  cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1 rounded-md aspect-square", // Added flex-1 and aspect-square for better sizing
+                  day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md", // Adjusted for flex
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary/90",
+                  day_today: "bg-accent/20 text-accent-foreground",
+                }}
+                modifiers={{ hasAppointmentMarker: daysWithAppointmentsForCalendarModifier }}
+                components={{
+                  DayContent: (props) => {
+                    const dayHasAppointment = daysWithAppointmentsForCalendarModifier.some(d => isSameDay(d, props.date));
+                    const isSelected = selectedDateForCalendar && isSameDay(props.date, selectedDateForCalendar);
+                    return (
+                      <div className="relative w-full h-full flex items-center justify-center">
+                        {props.date.getDate()}
+                        {dayHasAppointment && !isSelected && (
+                          <span className="absolute bottom-1.5 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-accent rounded-full border-2 border-card"></span>
+                        )}
+                      </div>
+                    );
+                  }
+                }}
+              />
+            </div>
           </div>
           
           <div className="lg:col-span-1">
@@ -232,3 +242,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
