@@ -13,10 +13,10 @@ export function AppHeader({ onAddAppointmentClick, firmName }: AppHeaderProps) {
     <header className="bg-card shadow-md p-4">
       <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-4">
         <div className="flex flex-col items-center sm:items-start">
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 cursor-pointer" aria-label="Go to Dashboard">
             <Scale className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold text-primary">Lexis Reminder</h1>
-          </div>
+          </Link>
           {firmName && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
               <Building className="h-3 w-3" />
@@ -39,5 +39,3 @@ export function AppHeader({ onAddAppointmentClick, firmName }: AppHeaderProps) {
     </header>
   );
 }
-
-    
