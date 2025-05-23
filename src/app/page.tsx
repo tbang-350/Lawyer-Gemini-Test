@@ -10,12 +10,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { AddAppointmentModal } from '@/components/modals/AddAppointmentModal';
 import { AppointmentDetailsModal } from '@/components/modals/AppointmentDetailsModal';
 import { useToast } from "@/hooks/use-toast";
-import { BarChartBig, CalendarCheck, CalendarClock, Users, Loader2 } from 'lucide-react';
+import { BarChartBig, CalendarCheck, CalendarClock, Users } from 'lucide-react';
 import { format, parse, startOfDay, isSameDay, addDays, subDays } from 'date-fns';
 import { combineDateAndTime } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts';
 
 
 // Mock Data
@@ -23,6 +23,7 @@ const initialLawyers: Lawyer[] = [
   { id: 'lawyer1', name: 'Alice Wonderland', email: 'alice@example.com' },
   { id: 'lawyer2', name: 'Bob The Builder', email: 'bob@example.com' },
   { id: 'lawyer3', name: 'Charlie Brown', email: 'charlie@example.com' },
+  { id: 'lawyer4', name: 'Diana Prince', email: 'diana@example.com' },
 ];
 
 const initialAppointments: Appointment[] = [
@@ -118,6 +119,36 @@ const initialAppointments: Appointment[] = [
         clientName: 'Client B',
         assignedLawyerId: 'lawyer3',
     }
+  },
+  {
+    id: '6',
+    title: 'Client Follow-up Call',
+    dateTime: combineDateAndTime(addDays(new Date(), 2), '16:00'),
+    description: 'Discuss progress and next steps.',
+    clientName: 'Client X',
+    assignedLawyerId: 'lawyer1',
+     formData: {
+        title: 'Client Follow-up Call',
+        date: addDays(new Date(), 2),
+        time: '16:00',
+        description: 'Discuss progress and next steps.',
+        clientName: 'Client X',
+        assignedLawyerId: 'lawyer1',
+    }
+  },
+  {
+    id: '7',
+    title: 'Strategy Meeting with Team',
+    dateTime: combineDateAndTime(addDays(new Date(), 4), '10:00'),
+    description: 'Internal strategy session for upcoming trial.',
+    assignedLawyerId: 'lawyer2',
+     formData: {
+        title: 'Strategy Meeting with Team',
+        date: addDays(new Date(), 4),
+        time: '10:00',
+        description: 'Internal strategy session for upcoming trial.',
+        assignedLawyerId: 'lawyer2',
+    }
   }
 ];
 
@@ -134,7 +165,6 @@ export default function DashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [lawyers, setLawyers] = useState<Lawyer[]>(initialLawyers);
   const [lawFirmInfo, setLawFirmInfo] = useState<LawFirm | null>(initialFirmInfo);
-  // const [isLoading, setIsLoading] = useState(true); // No longer needed for mock
 
   const [selectedDateForCalendar, setSelectedDateForCalendar] = useState<Date | undefined>(undefined);
   const [dateForModal, setDateForModal] = useState<Date | undefined>(undefined);
@@ -144,13 +174,6 @@ export default function DashboardPage() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   
   const { toast } = useToast();
-
-  // No fetchData needed for mock data, initialized with useState
-  // useEffect(() => {
-  //   fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, []);
-
 
   const appointmentsForSelectedDateModal = useMemo(() => {
     if (!dateForModal) return [];
@@ -173,14 +196,14 @@ export default function DashboardPage() {
         formData: data,
       };
 
-      if (id) { // Editing existing appointment
+      if (id) { 
         setAppointments(prev => prev.map(app => app.id === id ? { ...appointmentToSave, id } : app));
         toast({
           title: "Appointment Updated",
           description: `"${data.title}" updated successfully.`,
         });
-      } else { // Adding new appointment
-        const newId = Date.now().toString(); // Simple ID generation for mock
+      } else { 
+        const newId = Date.now().toString(); 
         setAppointments(prev => [...prev, { ...appointmentToSave, id: newId }]);
         toast({
           title: "Appointment Added",
@@ -279,25 +302,26 @@ export default function DashboardPage() {
             counts[app.assignedLawyerId].appointments++;
         }
     });
-    return Object.values(counts).filter(c => c.appointments >= 0); // Show all lawyers, even with 0 for consistency
+    return Object.values(counts).filter(c => c.appointments >= 0);
   }, [appointments, lawyers]);
 
-  const chartConfig = {
+  const barChartConfig = {
     appointments: {
         label: "Appointments",
         color: "hsl(var(--primary))",
     },
   } satisfies ChartConfig;
 
-  // No isLoading UI for mock data
-  // if (isLoading) {
-  //   return (
-  //     <div className="flex flex-col min-h-screen bg-background items-center justify-center">
-  //       <Loader2 className="h-12 w-12 animate-spin text-primary" />
-  //       <p className="mt-4 text-lg text-muted-foreground">Loading Dashboard...</p>
-  //     </div>
-  //   );
-  // }
+  const appointmentStatusData = useMemo(() => [
+    { name: 'Upcoming', value: upcomingAppointmentsCount, fill: 'hsl(var(--chart-2))' },
+    { name: 'Completed', value: pastAppointmentsCount, fill: 'hsl(var(--chart-5))' },
+  ], [upcomingAppointmentsCount, pastAppointmentsCount]);
+
+  const pieChartConfig = {
+    upcoming: { label: 'Upcoming', color: 'hsl(var(--chart-2))' },
+    completed: { label: 'Completed', color: 'hsl(var(--chart-5))' },
+  } satisfies ChartConfig;
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -325,18 +349,18 @@ export default function DashboardPage() {
                 mode="single"
                 selected={selectedDateForCalendar}
                 onSelect={handleDateSelectOnCalendar}
-                className="rounded-md w-full h-full" // Ensure calendar takes full width/height of its container
+                className="rounded-md w-full h-full" 
                 classNames={{
                   months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
                   month: "space-y-4 w-full flex-grow flex flex-col", 
                   table: "w-full border-collapse flex-grow", 
                   head_row: "flex w-full",
                   head_cell: "text-muted-foreground rounded-md font-normal text-[0.8rem] flex-1 text-center",
-                  row: "flex w-full mt-1 space-x-1 flex-grow", // Adjusted spacing
+                  row: "flex w-full mt-1 space-x-1 flex-grow", 
                   cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1 rounded-md aspect-square", 
-                  day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md", // Ensures day fills cell
+                  day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md",
                   day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary/90",
-                  day_today: "bg-accent/20 text-accent", // Updated for better contrast for current day
+                  day_today: "bg-accent/20 text-accent", 
                 }}
                 modifiers={{ hasAppointmentMarker: daysWithAppointmentsForCalendarModifier }}
                 components={{
@@ -362,15 +386,15 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="mt-8">
+        <section className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
            <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg text-primary">Appointments per Lawyer</CardTitle>
               <CardDescription>Total appointments assigned to each lawyer.</CardDescription>
             </CardHeader>
-            <CardContent className="pl-2 pr-6 pb-6"> {/* Adjusted padding for better chart fit */}
+            <CardContent className="pl-2 pr-6 pb-6"> 
               {lawyerAppointmentCounts.length > 0 ? (
-                <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+                <ChartContainer config={barChartConfig} className="min-h-[250px] w-full">
                   <BarChart accessibilityLayer data={lawyerAppointmentCounts} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis
@@ -396,7 +420,59 @@ export default function DashboardPage() {
                   </BarChart>
                 </ChartContainer>
               ) : (
-                <p className="text-muted-foreground text-center py-8">No appointments assigned to lawyers to display in chart.</p>
+                <p className="text-muted-foreground text-center py-8">No lawyer assignments to display.</p>
+              )}
+            </CardContent>
+          </Card>
+           <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-lg text-primary">Appointment Status</CardTitle>
+              <CardDescription>Overview of upcoming vs. completed events.</CardDescription>
+            </CardHeader>
+            <CardContent className="pb-6 flex justify-center items-center">
+              {totalAppointments > 0 ? (
+                <ChartContainer config={pieChartConfig} className="min-h-[250px] w-full aspect-square">
+                  <PieChart accessibilityLayer>
+                    <ChartTooltip content={<ChartTooltipContent hideLabel nameKey="name" />} />
+                    <Pie
+                      data={appointmentStatusData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      innerRadius={40}
+                      labelLine={false}
+                      label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                        const RADIAN = Math.PI / 180;
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        return (
+                          <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor="middle" dominantBaseline="central" fontSize={12}>
+                            {`${(percent * 100).toFixed(0)}%`}
+                          </text>
+                        );
+                      }}
+                    >
+                      {appointmentStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Legend content={({ payload }) => (
+                        <div className="flex justify-center items-center gap-4 mt-4 text-sm">
+                            {payload?.map((entry: any, index: number) => (
+                                <div key={`legend-${index}`} className="flex items-center gap-1.5">
+                                    <span style={{ backgroundColor: entry.color }} className="w-3 h-3 rounded-full inline-block"></span>
+                                    <span>{entry.value} ({appointmentStatusData.find(d => d.name === entry.value)?.value})</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}/>
+                  </PieChart>
+                </ChartContainer>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">No appointments to display status for.</p>
               )}
             </CardContent>
           </Card>
@@ -419,7 +495,6 @@ export default function DashboardPage() {
           isOpen={isDetailsModalOpen}
           onClose={() => {
             setIsDetailsModalOpen(false);
-            // setDateForModal(undefined); // Keep dateForModal to reopen if needed for same day
           }}
           appointments={appointmentsForSelectedDateModal}
           selectedDate={dateForModal}
@@ -431,5 +506,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
