@@ -13,6 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 import { BarChartBig, CalendarCheck, CalendarClock, Users, Loader2 } from 'lucide-react';
 import { format, parse, startOfDay, isSameDay, addDays, subDays } from 'date-fns';
 import { combineDateAndTime } from '@/lib/utils';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+
 
 // Mock Data
 const initialLawyers: Lawyer[] = [
@@ -81,6 +85,40 @@ const initialAppointments: Appointment[] = [
       remindOnDayAt: '07:00',
     }
   },
+  {
+    id: '4',
+    title: 'Deposition Prep - Client A',
+    dateTime: combineDateAndTime(addDays(new Date(), 1), '11:00'),
+    description: 'Preparing for deposition.',
+    clientName: 'Client A',
+    assignedLawyerId: 'lawyer1',
+    formData: {
+        title: 'Deposition Prep - Client A',
+        date: addDays(new Date(), 1),
+        time: '11:00',
+        description: 'Preparing for deposition.',
+        clientName: 'Client A',
+        assignedLawyerId: 'lawyer1',
+    }
+  },
+  {
+    id: '5',
+    title: 'Mediation Session - Client B',
+    dateTime: combineDateAndTime(addDays(new Date(), 5), '09:30'),
+    description: 'Mediation with opposing counsel.',
+    courtName: 'Mediation Center Downtown',
+    clientName: 'Client B',
+    assignedLawyerId: 'lawyer3',
+    formData: {
+        title: 'Mediation Session - Client B',
+        date: addDays(new Date(), 5),
+        time: '09:30',
+        description: 'Mediation with opposing counsel.',
+        courtName: 'Mediation Center Downtown',
+        clientName: 'Client B',
+        assignedLawyerId: 'lawyer3',
+    }
+  }
 ];
 
 const initialFirmInfo: LawFirm = {
@@ -231,6 +269,26 @@ export default function DashboardPage() {
     return Array.from(appointmentsByDay.keys()).map(dateStr => parse(dateStr, 'yyyy-MM-dd', new Date()));
   }, [appointmentsByDay]);
 
+  const lawyerAppointmentCounts = useMemo(() => {
+    const counts: { [key: string]: { name: string; appointments: number } } = {};
+    lawyers.forEach(lawyer => {
+        counts[lawyer.id] = { name: lawyer.name, appointments: 0 };
+    });
+    appointments.forEach(app => {
+        if (app.assignedLawyerId && counts[app.assignedLawyerId]) {
+            counts[app.assignedLawyerId].appointments++;
+        }
+    });
+    return Object.values(counts).filter(c => c.appointments >= 0); // Show all lawyers, even with 0 for consistency
+  }, [appointments, lawyers]);
+
+  const chartConfig = {
+    appointments: {
+        label: "Appointments",
+        color: "hsl(var(--primary))",
+    },
+  } satisfies ChartConfig;
+
   // No isLoading UI for mock data
   // if (isLoading) {
   //   return (
@@ -267,18 +325,18 @@ export default function DashboardPage() {
                 mode="single"
                 selected={selectedDateForCalendar}
                 onSelect={handleDateSelectOnCalendar}
-                className="rounded-md w-full h-full"
+                className="rounded-md w-full h-full" // Ensure calendar takes full width/height of its container
                 classNames={{
                   months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
                   month: "space-y-4 w-full flex-grow flex flex-col", 
                   table: "w-full border-collapse flex-grow", 
                   head_row: "flex w-full",
                   head_cell: "text-muted-foreground rounded-md font-normal text-[0.8rem] flex-1 text-center",
-                  row: "flex w-full mt-1 space-x-1 flex-grow", 
+                  row: "flex w-full mt-1 space-x-1 flex-grow", // Adjusted spacing
                   cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1 rounded-md aspect-square", 
-                  day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md",
+                  day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md", // Ensures day fills cell
                   day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary/90",
-                  day_today: "bg-accent/20 text-accent", 
+                  day_today: "bg-accent/20 text-accent", // Updated for better contrast for current day
                 }}
                 modifiers={{ hasAppointmentMarker: daysWithAppointmentsForCalendarModifier }}
                 components={{
@@ -302,6 +360,46 @@ export default function DashboardPage() {
           <div className="lg:col-span-1">
             <UpcomingAppointments appointments={appointments} onAppointmentClick={handleAppointmentClickFromList} />
           </div>
+        </section>
+
+        <section className="mt-8">
+           <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-lg text-primary">Appointments per Lawyer</CardTitle>
+              <CardDescription>Total appointments assigned to each lawyer.</CardDescription>
+            </CardHeader>
+            <CardContent className="pl-2 pr-6 pb-6"> {/* Adjusted padding for better chart fit */}
+              {lawyerAppointmentCounts.length > 0 ? (
+                <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+                  <BarChart accessibilityLayer data={lawyerAppointmentCounts} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="name"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                    />
+                    <YAxis 
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                    />
+                    <ChartTooltip
+                      cursor={{ fill: "hsl(var(--secondary))", radius: 4}}
+                      content={<ChartTooltipContent hideLabel indicator="dot" />}
+                    />
+                    <Bar dataKey="appointments" fill="var(--color-appointments)" radius={[4, 4, 0, 0]} barSize={30} />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">No appointments assigned to lawyers to display in chart.</p>
+              )}
+            </CardContent>
+          </Card>
         </section>
       </div>
 
@@ -333,3 +431,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
