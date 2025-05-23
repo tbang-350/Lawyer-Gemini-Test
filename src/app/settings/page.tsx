@@ -12,46 +12,36 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Save, Trash2, Loader2 } from 'lucide-react';
 
-import { getLawyers, addLawyer, deleteLawyer } from '@/services/lawyerService';
-import { getFirmDetails, saveFirmDetails } from '@/services/firmService';
+// Mock Data - In a real app, this would come from a global state or context updated by DashboardPage
+const initialLawyers: Lawyer[] = [
+  { id: 'lawyer1', name: 'Alice Wonderland', email: 'alice@example.com' },
+  { id: 'lawyer2', name: 'Bob The Builder', email: 'bob@example.com' },
+  { id: 'lawyer3', name: 'Charlie Brown', email: 'charlie@example.com' },
+];
 
-const defaultFirmDetails: LawFirm = {
-  name: 'Your Law Firm Name',
-  address: '',
-  phone: '',
-  email: ''
+const initialFirmDetails: LawFirm = {
+  id: 'firm1',
+  name: 'Lexis Legal Associates',
+  address: '123 Law St, Legaltown, LS 45678',
+  phone: '555-0101',
+  email: 'contact@lexislegal.com'
 };
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [firmDetails, setFirmDetails] = useState<LawFirm>(defaultFirmDetails);
-  const [lawyers, setLawyers] = useState<Lawyer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [firmDetails, setFirmDetails] = useState<LawFirm>(initialFirmDetails);
+  const [lawyers, setLawyers] = useState<Lawyer[]>(initialLawyers);
+  // const [isLoading, setIsLoading] = useState(true); // No longer needed for mock
 
   const [newLawyerName, setNewLawyerName] = useState('');
   const [newLawyerEmail, setNewLawyerEmail] = useState('');
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const [fetchedFirmDetails, fetchedLawyers] = await Promise.all([
-        getFirmDetails(),
-        getLawyers()
-      ]);
-      setFirmDetails(fetchedFirmDetails || defaultFirmDetails);
-      setLawyers(fetchedLawyers);
-    } catch (error) {
-      console.error("Failed to fetch settings data:", error);
-      toast({ title: "Error", description: "Could not load settings. Please try again.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
+  // No fetchData needed for mock data
+  // useEffect(() => {
+  //   fetchData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // }, []);
 
 
   const handleFirmDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,10 +50,12 @@ export default function SettingsPage() {
   };
 
   const handleSaveFirmDetails = async () => {
+    // In a real app, this would save to a DB. For mock, we just show a toast.
+    // The state is already updated by handleFirmDetailsChange.
     try {
-      await saveFirmDetails(firmDetails);
-      toast({ title: "Firm Details Updated", description: "Successfully saved firm information." });
-      fetchData(); // Re-fetch to ensure consistency if needed elsewhere
+      // await saveFirmDetails(firmDetails); // This would be the service call
+      toast({ title: "Firm Details Updated (Mock)", description: "Successfully saved firm information (locally)." });
+      // fetchData(); // Re-fetch if needed from DB
     } catch (error) {
       console.error("Error saving firm details: ", error);
       toast({ title: "Save Error", description: "Could not save firm details.", variant: "destructive" });
@@ -80,11 +72,15 @@ export default function SettingsPage() {
       return;
     }
     try {
-      await addLawyer({ name: newLawyerName.trim(), email: newLawyerEmail.trim() });
+      const newLawyer: Lawyer = {
+        id: Date.now().toString(), // Simple ID for mock
+        name: newLawyerName.trim(),
+        email: newLawyerEmail.trim()
+      };
+      setLawyers(prev => [...prev, newLawyer]);
       setNewLawyerName('');
       setNewLawyerEmail('');
-      toast({ title: "Lawyer Added", description: `${newLawyerName.trim()} has been added.` });
-      fetchData(); // Re-fetch lawyers
+      toast({ title: "Lawyer Added (Mock)", description: `${newLawyer.name} has been added (locally).` });
     } catch (error) {
        console.error("Error adding lawyer: ", error);
        toast({ title: "Add Error", description: "Could not add lawyer.", variant: "destructive" });
@@ -93,30 +89,27 @@ export default function SettingsPage() {
 
   const handleDeleteLawyer = async (lawyerId: string) => {
     try {
-      await deleteLawyer(lawyerId);
-      toast({ title: "Lawyer Removed", description: "Lawyer has been removed." });
-      fetchData(); // Re-fetch lawyers
+      setLawyers(prev => prev.filter(lawyer => lawyer.id !== lawyerId));
+      toast({ title: "Lawyer Removed (Mock)", description: "Lawyer has been removed (locally)." });
     } catch (error) {
       console.error("Error deleting lawyer: ", error);
       toast({ title: "Delete Error", description: "Could not remove lawyer.", variant: "destructive" });
     }
   };
   
-  // This is a dummy function because AppHeader requires onAddAppointmentClick
-  // but it's not relevant on the settings page.
   const dummyAddAppointment = () => { 
     toast({ title: "Info", description: "Add appointments from the main dashboard."});
   };
 
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-lg text-muted-foreground">Loading Settings...</p>
-      </div>
-    );
-  }
+  // No isLoading UI for mock data
+  // if (isLoading) {
+  //   return (
+  //     <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+  //       <Loader2 className="h-12 w-12 animate-spin text-primary" />
+  //       <p className="mt-4 text-lg text-muted-foreground">Loading Settings...</p>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">

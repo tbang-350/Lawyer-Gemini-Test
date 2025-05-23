@@ -11,19 +11,92 @@ import { AddAppointmentModal } from '@/components/modals/AddAppointmentModal';
 import { AppointmentDetailsModal } from '@/components/modals/AppointmentDetailsModal';
 import { useToast } from "@/hooks/use-toast";
 import { BarChartBig, CalendarCheck, CalendarClock, Users, Loader2 } from 'lucide-react';
-import { format, parse, startOfDay, isSameDay } from 'date-fns';
+import { format, parse, startOfDay, isSameDay, addDays, subDays } from 'date-fns';
+import { combineDateAndTime } from '@/lib/utils';
 
-import { getAppointments, addAppointment, updateAppointment, deleteAppointment } from '@/services/appointmentService';
-import { getLawyers } from '@/services/lawyerService';
-import { getFirmDetails } from '@/services/firmService';
-// import { combineDateAndTime } from '@/lib/utils'; // No longer needed here, used in service
+// Mock Data
+const initialLawyers: Lawyer[] = [
+  { id: 'lawyer1', name: 'Alice Wonderland', email: 'alice@example.com' },
+  { id: 'lawyer2', name: 'Bob The Builder', email: 'bob@example.com' },
+  { id: 'lawyer3', name: 'Charlie Brown', email: 'charlie@example.com' },
+];
+
+const initialAppointments: Appointment[] = [
+  {
+    id: '1',
+    title: 'Initial Consultation with Client X',
+    dateTime: combineDateAndTime(new Date(), '10:00'),
+    description: 'Discussing the preliminary details of the case.',
+    courtName: 'District Court Room 3',
+    caseNumber: 'CV-2024-001',
+    clientName: 'Client X',
+    assignedLawyerId: 'lawyer1',
+    formData: {
+      title: 'Initial Consultation with Client X',
+      date: new Date(),
+      time: '10:00',
+      description: 'Discussing the preliminary details of the case.',
+      courtName: 'District Court Room 3',
+      caseNumber: 'CV-2024-001',
+      clientName: 'Client X',
+      assignedLawyerId: 'lawyer1',
+      remindBeforeDays: 2,
+      remindOnDayAt: '08:00',
+    }
+  },
+  {
+    id: '2',
+    title: 'Hearing for Case Y',
+    dateTime: combineDateAndTime(addDays(new Date(), 3), '14:30'),
+    description: 'Presenting evidence and arguments.',
+    courtName: 'Supreme Court',
+    caseNumber: 'SC-2024-005',
+    clientName: 'Client Y',
+    assignedLawyerId: 'lawyer2',
+    formData: {
+      title: 'Hearing for Case Y',
+      date: addDays(new Date(), 3),
+      time: '14:30',
+      description: 'Presenting evidence and arguments.',
+      courtName: 'Supreme Court',
+      caseNumber: 'SC-2024-005',
+      clientName: 'Client Y',
+      assignedLawyerId: 'lawyer2',
+    }
+  },
+  {
+    id: '3',
+    title: 'Review Meeting - Client Z',
+    dateTime: combineDateAndTime(subDays(new Date(), 2), '09:00'),
+    description: 'Review of contract documents.',
+    clientName: 'Client Z',
+    assignedLawyerId: 'lawyer1',
+    formData: {
+      title: 'Review Meeting - Client Z',
+      date: subDays(new Date(), 2),
+      time: '09:00',
+      description: 'Review of contract documents.',
+      clientName: 'Client Z',
+      assignedLawyerId: 'lawyer1',
+      remindOnDayAt: '07:00',
+    }
+  },
+];
+
+const initialFirmInfo: LawFirm = {
+  id: 'firm1',
+  name: 'Lexis Legal Associates',
+  address: '123 Law St, Legaltown, LS 45678',
+  phone: '555-0101',
+  email: 'contact@lexislegal.com'
+};
 
 
 export default function DashboardPage() {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [lawyers, setLawyers] = useState<Lawyer[]>([]);
-  const [lawFirmInfo, setLawFirmInfo] = useState<LawFirm | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [lawyers, setLawyers] = useState<Lawyer[]>(initialLawyers);
+  const [lawFirmInfo, setLawFirmInfo] = useState<LawFirm | null>(initialFirmInfo);
+  // const [isLoading, setIsLoading] = useState(true); // No longer needed for mock
 
   const [selectedDateForCalendar, setSelectedDateForCalendar] = useState<Date | undefined>(undefined);
   const [dateForModal, setDateForModal] = useState<Date | undefined>(undefined);
@@ -34,29 +107,11 @@ export default function DashboardPage() {
   
   const { toast } = useToast();
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const [fetchedAppointments, fetchedLawyers, fetchedFirmDetails] = await Promise.all([
-        getAppointments(),
-        getLawyers(),
-        getFirmDetails(),
-      ]);
-      setAppointments(fetchedAppointments);
-      setLawyers(fetchedLawyers);
-      setLawFirmInfo(fetchedFirmDetails);
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
-      toast({ title: "Error", description: "Could not load data. Please try again.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
+  // No fetchData needed for mock data, initialized with useState
+  // useEffect(() => {
+  //   fetchData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // }, []);
 
 
   const appointmentsForSelectedDateModal = useMemo(() => {
@@ -68,20 +123,32 @@ export default function DashboardPage() {
 
   const handleSaveAppointment = async (data: AppointmentFormData, id?: string) => {
     try {
+      const appointmentDateTime = combineDateAndTime(data.date, data.time);
+      const appointmentToSave: Omit<Appointment, 'id'> = {
+        title: data.title,
+        dateTime: appointmentDateTime,
+        description: data.description || '',
+        courtName: data.courtName,
+        caseNumber: data.caseNumber,
+        clientName: data.clientName,
+        assignedLawyerId: data.assignedLawyerId,
+        formData: data,
+      };
+
       if (id) { // Editing existing appointment
-        await updateAppointment(id, data);
+        setAppointments(prev => prev.map(app => app.id === id ? { ...appointmentToSave, id } : app));
         toast({
           title: "Appointment Updated",
           description: `"${data.title}" updated successfully.`,
         });
       } else { // Adding new appointment
-        await addAppointment(data);
+        const newId = Date.now().toString(); // Simple ID generation for mock
+        setAppointments(prev => [...prev, { ...appointmentToSave, id: newId }]);
         toast({
           title: "Appointment Added",
           description: `"${data.title}" scheduled successfully.`,
         });
       }
-      fetchData(); // Re-fetch all appointments to reflect changes
       setEditingAppointment(null); 
     } catch (error) {
       console.error("Failed to save appointment:", error);
@@ -100,13 +167,12 @@ export default function DashboardPage() {
     if (!appointmentToDelete) return;
 
     try {
-      await deleteAppointment(appointmentId);
+      setAppointments(prev => prev.filter(app => app.id !== appointmentId));
       toast({
         title: "Appointment Deleted",
         description: `"${appointmentToDelete.title}" has been removed.`,
         variant: "destructive",
       });
-      fetchData(); // Re-fetch to update list
       setIsDetailsModalOpen(false); 
       setDateForModal(undefined); 
       setSelectedDateForCalendar(undefined);
@@ -165,14 +231,15 @@ export default function DashboardPage() {
     return Array.from(appointmentsByDay.keys()).map(dateStr => parse(dateStr, 'yyyy-MM-dd', new Date()));
   }, [appointmentsByDay]);
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-lg text-muted-foreground">Loading Dashboard...</p>
-      </div>
-    );
-  }
+  // No isLoading UI for mock data
+  // if (isLoading) {
+  //   return (
+  //     <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+  //       <Loader2 className="h-12 w-12 animate-spin text-primary" />
+  //       <p className="mt-4 text-lg text-muted-foreground">Loading Dashboard...</p>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -211,7 +278,7 @@ export default function DashboardPage() {
                   cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1 rounded-md aspect-square", 
                   day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md",
                   day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary/90",
-                  day_today: "bg-accent/20 text-accent",
+                  day_today: "bg-accent/20 text-accent", 
                 }}
                 modifiers={{ hasAppointmentMarker: daysWithAppointmentsForCalendarModifier }}
                 components={{
@@ -254,6 +321,7 @@ export default function DashboardPage() {
           isOpen={isDetailsModalOpen}
           onClose={() => {
             setIsDetailsModalOpen(false);
+            // setDateForModal(undefined); // Keep dateForModal to reopen if needed for same day
           }}
           appointments={appointmentsForSelectedDateModal}
           selectedDate={dateForModal}

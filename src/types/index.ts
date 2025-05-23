@@ -1,12 +1,12 @@
 
 export interface Lawyer {
-  id: string; // Firestore document ID
+  id: string; // Can be mock ID or Firestore document ID
   name: string;
   email: string;
 }
 
 export interface LawFirm {
-  id?: string; // Firestore document ID (if we decide to make it a doc, e.g. "main")
+  id?: string; // Can be mock ID or Firestore document ID
   name: string;
   address?: string;
   phone?: string;
@@ -17,7 +17,7 @@ export interface AppointmentFormData {
   title: string;
   date: Date; // JS Date object
   time: string; // HH:mm format
-  description: string;
+  description: string; // Changed from description? to description
   courtName?: string;
   caseNumber?: string;
   clientName?: string;
@@ -27,15 +27,13 @@ export interface AppointmentFormData {
 }
 
 export interface Appointment {
-  id: string; // Firestore document ID
+  id: string; // Can be mock ID or Firestore document ID
   title: string;
-  dateTime: Date; // JS Date object (converted from Firestore Timestamp)
-  description: string;
+  dateTime: Date; // JS Date object
+  description: string; // Changed from description? to description
   courtName?: string;
   caseNumber?: string;
   clientName?: string;
   assignedLawyerId?: string;
-  formData: AppointmentFormData; // Store the original form data, its 'date' field is a JS Date
-                                // Firestore will convert formData.date to Timestamp automatically on save
-                                // and we'll convert it back to JS Date on fetch.
+  formData: AppointmentFormData; 
 }
