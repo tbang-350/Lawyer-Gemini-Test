@@ -16,7 +16,7 @@ import { format, parse, startOfDay, isSameDay } from 'date-fns';
 import { getAppointments, addAppointment, updateAppointment, deleteAppointment } from '@/services/appointmentService';
 import { getLawyers } from '@/services/lawyerService';
 import { getFirmDetails } from '@/services/firmService';
-import { combineDateAndTime } from '@/lib/utils';
+// import { combineDateAndTime } from '@/lib/utils'; // No longer needed here, used in service
 
 
 export default function DashboardPage() {
@@ -211,7 +211,7 @@ export default function DashboardPage() {
                   cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1 rounded-md aspect-square", 
                   day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md",
                   day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary/90",
-                  day_today: "bg-accent/20 text-accent-foreground",
+                  day_today: "bg-accent/20 text-accent",
                 }}
                 modifiers={{ hasAppointmentMarker: daysWithAppointmentsForCalendarModifier }}
                 components={{
