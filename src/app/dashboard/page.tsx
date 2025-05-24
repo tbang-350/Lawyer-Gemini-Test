@@ -9,12 +9,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { AddAppointmentModal } from '@/components/modals/AddAppointmentModal';
 import { AppointmentDetailsModal } from '@/components/modals/AppointmentDetailsModal';
 import { useToast } from "@/hooks/use-toast";
-import { BarChartBig, CalendarCheck, CalendarClock, Users, Loader2, UserCheck as UserCheckIcon, CalendarDays } from 'lucide-react';
-import { format, parse, startOfDay, isSameDay, addDays, subDays, isFuture } from 'date-fns';
+import { BarChartBig, CalendarCheck, CalendarClock, Users, Loader2, UserCheck as UserCheckIcon, CalendarDays, LineChart as LineChartIcon } from 'lucide-react';
+import { format, parse, startOfDay, isSameDay, addDays, subDays, isFuture, eachDayOfInterval } from 'date-fns';
 import { combineDateAndTime } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Legend, LineChart, Line, ResponsiveContainer } from 'recharts';
 
 // Mock Data
 const initialLawyers: Lawyer[] = [
@@ -24,11 +24,12 @@ const initialLawyers: Lawyer[] = [
   { id: 'lawyer4', name: 'Diana Prince', email: 'diana@example.com' },
 ];
 
+const today = new Date();
 const initialAppointments: Appointment[] = [
   {
     id: '1',
     title: 'Initial Consultation with Client X',
-    dateTime: combineDateAndTime(new Date(), '10:00'),
+    dateTime: combineDateAndTime(today, '10:00'),
     description: 'Discussing the preliminary details of the case.',
     courtName: 'District Court Room 3',
     caseNumber: 'CV-2024-001',
@@ -36,7 +37,7 @@ const initialAppointments: Appointment[] = [
     assignedLawyerId: 'lawyer1',
     formData: {
       title: 'Initial Consultation with Client X',
-      date: new Date(),
+      date: today,
       time: '10:00',
       description: 'Discussing the preliminary details of the case.',
       courtName: 'District Court Room 3',
@@ -50,7 +51,7 @@ const initialAppointments: Appointment[] = [
   {
     id: '2',
     title: 'Hearing for Case Y',
-    dateTime: combineDateAndTime(addDays(new Date(), 3), '14:30'),
+    dateTime: combineDateAndTime(addDays(today, 3), '14:30'),
     description: 'Presenting evidence and arguments.',
     courtName: 'Supreme Court',
     caseNumber: 'SC-2024-005',
@@ -58,7 +59,7 @@ const initialAppointments: Appointment[] = [
     assignedLawyerId: 'lawyer2',
     formData: {
       title: 'Hearing for Case Y',
-      date: addDays(new Date(), 3),
+      date: addDays(today, 3),
       time: '14:30',
       description: 'Presenting evidence and arguments.',
       courtName: 'Supreme Court',
@@ -70,13 +71,13 @@ const initialAppointments: Appointment[] = [
   {
     id: '3',
     title: 'Review Meeting - Client Z',
-    dateTime: combineDateAndTime(subDays(new Date(), 2), '09:00'),
+    dateTime: combineDateAndTime(subDays(today, 2), '09:00'),
     description: 'Review of contract documents.',
     clientName: 'Client Z',
     assignedLawyerId: 'lawyer1',
     formData: {
       title: 'Review Meeting - Client Z',
-      date: subDays(new Date(), 2),
+      date: subDays(today, 2),
       time: '09:00',
       description: 'Review of contract documents.',
       clientName: 'Client Z',
@@ -87,30 +88,46 @@ const initialAppointments: Appointment[] = [
   {
     id: '4',
     title: 'Deposition Prep - Client A',
-    dateTime: combineDateAndTime(addDays(new Date(), 1), '11:00'),
+    dateTime: combineDateAndTime(addDays(today, 1), '11:00'),
     description: 'Preparing for deposition.',
     clientName: 'Client A',
     assignedLawyerId: 'lawyer1',
     formData: {
         title: 'Deposition Prep - Client A',
-        date: addDays(new Date(), 1),
+        date: addDays(today, 1),
         time: '11:00',
         description: 'Preparing for deposition.',
         clientName: 'Client A',
         assignedLawyerId: 'lawyer1',
     }
   },
+    {
+    id: '4b',
+    title: 'Another Deposition - Client A2',
+    dateTime: combineDateAndTime(addDays(today, 1), '15:00'),
+    description: 'Second deposition prep.',
+    clientName: 'Client A2',
+    assignedLawyerId: 'lawyer1',
+    formData: {
+        title: 'Another Deposition - Client A2',
+        date: addDays(today, 1),
+        time: '15:00',
+        description: 'Second deposition prep.',
+        clientName: 'Client A2',
+        assignedLawyerId: 'lawyer1',
+    }
+  },
   {
     id: '5',
     title: 'Mediation Session - Client B',
-    dateTime: combineDateAndTime(addDays(new Date(), 5), '09:30'),
+    dateTime: combineDateAndTime(addDays(today, 5), '09:30'),
     description: 'Mediation with opposing counsel.',
     courtName: 'Mediation Center Downtown',
     clientName: 'Client B',
     assignedLawyerId: 'lawyer3',
     formData: {
         title: 'Mediation Session - Client B',
-        date: addDays(new Date(), 5),
+        date: addDays(today, 5),
         time: '09:30',
         description: 'Mediation with opposing counsel.',
         courtName: 'Mediation Center Downtown',
@@ -121,28 +138,42 @@ const initialAppointments: Appointment[] = [
   {
     id: '6',
     title: 'Client Follow-up Call',
-    dateTime: combineDateAndTime(addDays(new Date(), 2), '16:00'),
+    dateTime: combineDateAndTime(addDays(today, 2), '16:00'),
     description: 'Discuss progress and next steps.',
     clientName: 'Client X',
     assignedLawyerId: 'lawyer1',
      formData: {
         title: 'Client Follow-up Call',
-        date: addDays(new Date(), 2),
+        date: addDays(today, 2),
         time: '16:00',
         description: 'Discuss progress and next steps.',
         clientName: 'Client X',
         assignedLawyerId: 'lawyer1',
     }
   },
+    {
+    id: '6b',
+    title: 'Internal Case Review',
+    dateTime: combineDateAndTime(addDays(today, 2), '09:00'),
+    description: 'Review case files with paralegal.',
+    assignedLawyerId: 'lawyer4',
+     formData: {
+        title: 'Internal Case Review',
+        date: addDays(today, 2),
+        time: '09:00',
+        description: 'Review case files with paralegal.',
+        assignedLawyerId: 'lawyer4',
+    }
+  },
   {
     id: '7',
     title: 'Strategy Meeting with Team',
-    dateTime: combineDateAndTime(addDays(new Date(), 4), '10:00'),
+    dateTime: combineDateAndTime(addDays(today, 4), '10:00'),
     description: 'Internal strategy session for upcoming trial.',
     assignedLawyerId: 'lawyer2',
      formData: {
         title: 'Strategy Meeting with Team',
-        date: addDays(new Date(), 4),
+        date: addDays(today, 4),
         time: '10:00',
         description: 'Internal strategy session for upcoming trial.',
         assignedLawyerId: 'lawyer2',
@@ -151,19 +182,33 @@ const initialAppointments: Appointment[] = [
    {
     id: '8',
     title: 'Contract Review with Client D',
-    dateTime: combineDateAndTime(addDays(new Date(), 3), '10:00'), // Same day as another appointment
+    dateTime: combineDateAndTime(addDays(today, 3), '10:00'), // Same day as another appointment
     description: 'Final review of the service agreement.',
     clientName: 'Client D',
     assignedLawyerId: 'lawyer4',
     formData: {
       title: 'Contract Review with Client D',
-      date: addDays(new Date(), 3),
+      date: addDays(today, 3),
       time: '10:00',
       description: 'Final review of the service agreement.',
       clientName: 'Client D',
       assignedLawyerId: 'lawyer4',
     }
-  }
+  },
+  {
+    id: '9',
+    title: 'Court Filing Deadline Prep',
+    dateTime: combineDateAndTime(addDays(today, 6), '11:00'),
+    description: 'Prepare documents for e-filing.',
+    assignedLawyerId: 'lawyer3',
+    formData: {
+      title: 'Court Filing Deadline Prep',
+      date: addDays(today, 6),
+      time: '11:00',
+      description: 'Prepare documents for e-filing.',
+      assignedLawyerId: 'lawyer3',
+    }
+  },
 ];
 
 const initialFirmInfo: LawFirm = {
@@ -356,8 +401,8 @@ export default function DashboardPage() {
   } satisfies ChartConfig;
 
   const appointmentStatusData = useMemo(() => [
-    { name: 'Upcoming', value: upcomingAppointmentsCount, fill: 'hsl(var(--chart-2))' }, // Teal
-    { name: 'Completed', value: pastAppointmentsCount, fill: 'hsl(var(--chart-5))' }, // Orange
+    { name: 'Upcoming', value: upcomingAppointmentsCount, fill: 'hsl(var(--chart-2))' }, 
+    { name: 'Completed', value: pastAppointmentsCount, fill: 'hsl(var(--chart-5))' }, 
   ], [upcomingAppointmentsCount, pastAppointmentsCount]);
 
   const pieChartConfig = {
@@ -365,28 +410,29 @@ export default function DashboardPage() {
     completed: { label: 'Completed', color: 'hsl(var(--chart-5))' },
   } satisfies ChartConfig;
 
-  const leadLawyer = useMemo(() => {
-    if (lawyerAppointmentCounts.length === 0) return null;
-    return lawyerAppointmentCounts.reduce((max, current) => current.appointments > max.appointments ? current : max, lawyerAppointmentCounts[0]);
-  }, [lawyerAppointmentCounts]);
 
-  const busiestUpcomingDay = useMemo(() => {
-    const upcomingAppointmentsByDay: { [key: string]: { date: Date, count: number } } = {};
-    appointments
-      .filter(app => isFuture(app.dateTime) || isSameDay(app.dateTime, new Date()))
-      .forEach(app => {
-        const dayKey = format(startOfDay(app.dateTime), 'yyyy-MM-dd');
-        if (!upcomingAppointmentsByDay[dayKey]) {
-          upcomingAppointmentsByDay[dayKey] = { date: startOfDay(app.dateTime), count: 0 };
-        }
-        upcomingAppointmentsByDay[dayKey].count++;
-      });
+  const appointmentsNext7DaysData = useMemo(() => {
+    const next7Days = eachDayOfInterval({
+      start: startOfDay(new Date()),
+      end: addDays(startOfDay(new Date()), 6),
+    });
 
-    const daysArray = Object.values(upcomingAppointmentsByDay);
-    if (daysArray.length === 0) return null;
-    
-    return daysArray.reduce((busiest, current) => current.count > busiest.count ? current : busiest, daysArray[0]);
+    return next7Days.map(day => {
+      const count = appointments.filter(app => isSameDay(app.dateTime, day)).length;
+      return {
+        date: format(day, 'MMM d'), // Format like "May 23"
+        shortDate: format(day, 'E'), // Format like "Mon" for XAxis
+        count: count,
+      };
+    });
   }, [appointments]);
+
+  const lineChartConfig = {
+    count: {
+      label: 'Appointments',
+      color: 'hsl(var(--chart-1))',
+    },
+  } satisfies ChartConfig;
 
 
   if (isLoading) {
@@ -408,7 +454,7 @@ export default function DashboardPage() {
           <StatCard title="Attorneys Onboarded" value={lawyers.length} icon={Users} description="Managed in settings" />
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           <div className="lg:col-span-2 bg-card p-6 rounded-lg shadow-lg flex flex-col">
             <h2 className="text-xl font-semibold text-primary mb-4">Appointment Calendar</h2>
             <div className="flex-grow">
@@ -453,15 +499,15 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-           <Card className="shadow-lg col-span-1 sm:col-span-2 lg:col-span-1">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+           <Card className="shadow-lg col-span-1">
             <CardHeader>
               <CardTitle className="text-md text-primary">Lawyer Assignments</CardTitle>
               <CardDescription className="text-xs">Appts. per lawyer.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-0 px-1 pb-2 min-h-[220px]">
+            <CardContent className="pt-0 px-1 pb-2 min-h-[180px] sm:min-h-[200px]">
               {lawyerAppointmentCounts.length > 0 ? (
-                <ChartContainer config={barChartConfig} className="min-h-[180px] w-full h-full">
+                <ChartContainer config={barChartConfig} className="min-h-[150px] sm:min-h-[170px] w-full h-full">
                   <BarChart accessibilityLayer data={lawyerAppointmentCounts} margin={{ top: 15, right: 15, left: -15, bottom: 0 }}>
                     <CartesianGrid vertical={false} strokeDasharray="2 2" />
                     <XAxis
@@ -470,8 +516,11 @@ export default function DashboardPage() {
                       tickMargin={5}
                       axisLine={false}
                       stroke="hsl(var(--muted-foreground))"
-                      fontSize={10}
-                      interval={0} // Show all labels if possible
+                      fontSize={9}
+                      interval={0} 
+                      angle={-25}
+                      textAnchor="end"
+                      height={35}
                     />
                     <YAxis
                       stroke="hsl(var(--muted-foreground))"
@@ -485,7 +534,7 @@ export default function DashboardPage() {
                       cursor={{ fill: "hsl(var(--secondary))", radius: 3}}
                       content={<ChartTooltipContent hideLabel indicator="dot" className="text-xs p-1.5"/>}
                     />
-                    <Bar dataKey="appointments" fill="var(--color-appointments)" radius={[3, 3, 0, 0]} barSize={15} />
+                    <Bar dataKey="appointments" fill="var(--color-appointments)" radius={[3, 3, 0, 0]} barSize={12} />
                   </BarChart>
                 </ChartContainer>
               ) : (
@@ -493,15 +542,15 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
-           <Card className="shadow-lg col-span-1 sm:col-span-2 lg:col-span-1">
+           <Card className="shadow-lg col-span-1">
             <CardHeader>
               <CardTitle className="text-md text-primary">Appointment Status</CardTitle>
               <CardDescription className="text-xs">Upcoming vs. completed.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-0 flex justify-center items-center pb-2 min-h-[220px]">
+            <CardContent className="pt-0 flex justify-center items-center pb-2 min-h-[180px] sm:min-h-[200px]">
               {totalAppointments > 0 ? (
-                <ChartContainer config={pieChartConfig} className="min-h-[180px] w-full h-full aspect-square">
-                  <PieChart accessibilityLayer margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                <ChartContainer config={pieChartConfig} className="min-h-[150px] sm:min-h-[170px] w-full h-full aspect-square">
+                  <PieChart accessibilityLayer margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                     <ChartTooltip content={<ChartTooltipContent hideLabel nameKey="name" className="text-xs p-1.5"/>} />
                     <Pie
                       data={appointmentStatusData}
@@ -509,26 +558,26 @@ export default function DashboardPage() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={70}
-                      innerRadius={35}
+                      outerRadius={60}
+                      innerRadius={30}
                       labelLine={false}
                       label={({ percent, name }) => `${(percent * 100).toFixed(0)}%`}
-                      
                     >
                       {appointmentStatusData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
-                    <Legend content={({ payload }) => (
-                        <div className="flex flex-wrap justify-center items-center gap-x-3 gap-y-1 mt-2 text-xs">
-                            {payload?.map((entry: any, index: number) => (
-                                <div key={`legend-${index}`} className="flex items-center gap-1">
-                                    <span style={{ backgroundColor: entry.color }} className="w-2 h-2 rounded-full inline-block"></span>
-                                    <span>{entry.value} ({appointmentStatusData.find(d => d.name === entry.value)?.value})</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}/>
+                    <Legend 
+                      wrapperStyle={{fontSize: '10px', marginTop: '0px'}} 
+                      iconSize={8} 
+                      payload={
+                        appointmentStatusData.map(entry => ({
+                          value: `${entry.name} (${entry.value})`,
+                          type: 'square',
+                          color: entry.fill
+                        }))
+                      }
+                    />
                   </PieChart>
                 </ChartContainer>
               ) : (
@@ -536,46 +585,69 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
-          {leadLawyer && leadLawyer.appointments > 0 ? (
-            <StatCard 
-              title="Lead Lawyer" 
-              value={leadLawyer.name}
-              icon={UserCheckIcon}
-              description={`${leadLawyer.appointments} appointments`}
-              className="col-span-1 sm:col-span-1 lg:col-span-1"
-            />
-          ) : (
-             <Card className="shadow-lg col-span-1 sm:col-span-1 lg:col-span-1">
-                <CardHeader>
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Lead Lawyer</CardTitle>
-                    <UserCheckIcon className="h-5 w-5 text-accent" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-primary">-</div>
-                    <p className="text-xs text-muted-foreground pt-1">No assignments yet</p>
-                </CardContent>
-            </Card>
-          )}
-          {busiestUpcomingDay && busiestUpcomingDay.count > 0 ? (
-             <StatCard 
-              title="Busiest Upcoming Day" 
-              value={format(busiestUpcomingDay.date, 'MMM d, yyyy')}
-              icon={CalendarDays}
-              description={`${busiestUpcomingDay.count} appointments`}
-              className="col-span-1 sm:col-span-1 lg:col-span-1"
-            />
-          ) : (
-            <Card className="shadow-lg col-span-1 sm:col-span-1 lg:col-span-1">
-                <CardHeader>
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Busiest Upcoming Day</CardTitle>
-                    <CalendarDays className="h-5 w-5 text-accent" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-primary">-</div>
-                    <p className="text-xs text-muted-foreground pt-1">No upcoming events</p>
-                </CardContent>
-            </Card>
-          )}
+          <Card className="shadow-lg col-span-1 sm:col-span-2 lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-md text-primary flex items-center">
+                <LineChartIcon className="mr-2 h-5 w-5"/> Appointments - Next 7 Days
+              </CardTitle>
+              <CardDescription className="text-xs">Trend for the upcoming week.</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0 px-1 pb-2 min-h-[180px] sm:min-h-[200px]">
+              {appointmentsNext7DaysData.some(d => d.count > 0) ? (
+                 <ChartContainer config={lineChartConfig} className="min-h-[150px] sm:min-h-[170px] w-full h-full">
+                   <LineChart
+                     accessibilityLayer
+                     data={appointmentsNext7DaysData}
+                     margin={{ top: 15, right: 20, left: -10, bottom: 0 }}
+                   >
+                     <CartesianGrid vertical={false} strokeDasharray="2 2" />
+                     <XAxis
+                       dataKey="shortDate" // Use short day name for X-axis
+                       tickLine={false}
+                       axisLine={false}
+                       tickMargin={8}
+                       stroke="hsl(var(--muted-foreground))"
+                       fontSize={10}
+                     />
+                     <YAxis
+                       tickLine={false}
+                       axisLine={false}
+                       stroke="hsl(var(--muted-foreground))"
+                       fontSize={10}
+                       allowDecimals={false}
+                       width={20}
+                     />
+                     <ChartTooltip
+                       cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1, strokeDasharray: "3 3" }}
+                       content={<ChartTooltipContent 
+                                  indicator="dot" 
+                                  className="text-xs p-1.5" 
+                                  formatter={(value, name, props) => {
+                                    // props.payload contains the full data item, like {date: "May 23", count: 2}
+                                    return [`${props.payload.date}: ${value}`, null]; 
+                                  }}
+                                />}
+                     />
+                     <Line
+                       dataKey="count"
+                       type="monotone"
+                       stroke="var(--color-count)"
+                       strokeWidth={2}
+                       dot={{
+                         fill: "var(--color-count)",
+                         r: 4,
+                       }}
+                       activeDot={{
+                         r: 6,
+                       }}
+                     />
+                   </LineChart>
+                 </ChartContainer>
+              ) : (
+                <p className="text-muted-foreground text-center py-6 text-sm">No upcoming appointments in the next 7 days.</p>
+              )}
+            </CardContent>
+          </Card>
 
         </section>
       </div>
@@ -607,3 +679,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
