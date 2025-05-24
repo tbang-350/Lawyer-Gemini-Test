@@ -1,25 +1,31 @@
 
-# Lexis Reminder - Court Appointment Tracker
+# Lexis Reminder - Court Appointment Tracker (SaaS Concept)
 
-This is a Next.js application designed as a "Lexis Reminder" tool for law firms to track court appointments, manage lawyers, and view key statistics. It's built using Next.js, React, ShadCN UI components, Tailwind CSS, and is set up for potential AI integration with Genkit.
+This is a Next.js application designed as a "Lexis Reminder" tool. It's evolving into a SaaS concept where law firms can track court appointments, manage lawyers, and view key statistics. It's built using Next.js, React, ShadCN UI components, Tailwind CSS, and is set up for potential AI integration with Genkit.
 
 **This project was prototyped with the assistance of Firebase Studio's AI coding partner.**
 
-## Current Features
+## Application Structure
 
-*   **Dashboard View:**
+*   **Landing Page (`/`):** A public-facing page describing the Lexis Reminder service with "Login" and "Get Started" options.
+*   **Dashboard (`/dashboard`):** The main application interface accessible after "login" (currently simulated by navigation). This is where users manage appointments and view data.
+*   **Settings Page (`/settings`):** A page (accessible from the dashboard header) for managing firm details and lawyers (currently using mock data and local state).
+
+## Current Features (Dashboard & Settings)
+
+*   **Dashboard View (`/dashboard`):**
     *   **Statistics Cards:** Displaying counts for total appointments, upcoming appointments, completed appointments, and the number of onboarded attorneys.
     *   **Interactive Calendar:** Allows users to select dates to view appointments. Days with appointments are marked.
     *   **Upcoming Appointments List:** Shows the next few upcoming appointments with quick details.
     *   **Data Visualizations:**
         *   Bar chart showing the number of appointments assigned per lawyer.
         *   Pie chart illustrating the distribution of upcoming vs. completed appointments.
-*   **Appointment Management:**
+*   **Appointment Management (Dashboard):**
     *   Add new appointments with details like title, date, time, description, court name, case number, client name, and assigned lawyer.
     *   View detailed information for appointments on a selected date.
     *   Edit existing appointment details.
     *   Delete appointments with a confirmation step.
-    *   (Conceptual) Set reminder preferences for appointments (days before, time on day).
+    *   (Conceptual) Set reminder preferences for appointments (days before, time on day), and see a "Scheduled" status.
 *   **Settings Page (`/settings`):**
     *   **Firm Details:** (Mock) Interface to manage the law firm's name, address, phone, and email.
     *   **Lawyer Management:** (Mock) Interface to add new lawyers and view/remove existing ones.
@@ -29,7 +35,7 @@ This is a Next.js application designed as a "Lexis Reminder" tool for law firms 
     *   Loading indicators for page transitions.
 *   **Data Handling:**
     *   Currently uses **mock data** for all appointments, lawyers, and firm details. Data will reset on page refresh.
-    *   The application was initially built with Firebase Firestore integration for persistent storage, and the service files for this integration (`src/services/`) are still present but currently unused. This can be reactivated for a live backend.
+    *   The application was previously configured for Firebase Firestore integration, and service files for this (`src/services/`) may still be present but are currently unused. This can be reactivated for a live backend.
 
 ## Tech Stack
 
@@ -52,16 +58,17 @@ This is a Next.js application designed as a "Lexis Reminder" tool for law firms 
     ```bash
     npm run dev
     ```
-    The application will typically be available at `http://localhost:9002` (or another port if 9002 is in use).
+    The application will typically be available at `http://localhost:9002` (or another port if 9002 is in use). The landing page is at `/`, and the main app dashboard is at `/dashboard`.
 
-## Future Enhancements / Firebase Integration
+## Future Enhancements / SaaS Development
 
-*   **Activate Firebase Firestore:**
-    *   Set up a Firebase project.
-    *   Update `src/lib/firebase.ts` with your Firebase project configuration.
-    *   Uncomment and utilize the service functions in `src/services/` to replace mock data handling with live Firestore interactions.
-*   **Real-time Email Notifications:** Implement actual email sending for appointment reminders using a backend service (e.g., Firebase Functions with an email provider).
-*   **Authentication:** Add user authentication to secure the application.
-*   **Advanced AI Features:** Integrate Genkit more deeply for features like smart scheduling suggestions, automated appointment summaries, or drafting reminder communications.
+*   **User Authentication:** Implement a proper login/signup system (e.g., using Firebase Authentication).
+*   **Persistent Storage (Multi-tenant):**
+    *   Activate Firebase Firestore (or another database).
+    *   Structure data to be multi-tenant, ensuring each law firm's data is isolated.
+    *   Update service functions in `src/services/` to interact with the live, multi-tenant database.
+*   **Real-time Email Notifications:** Implement actual email sending for appointment reminders using a backend service (e.g., Firebase Functions with an email provider), potentially triggered by appointment data and reminder settings.
+*   **Subscription Management:** If it's a paid SaaS, integrate a subscription/billing system.
+*   **Advanced AI Features:** Integrate Genkit more deeply for features like smart scheduling suggestions, automated appointment summaries, or drafting reminder communications, potentially tailored per firm or user.
 
-This project serves as a functional prototype demonstrating key features of a legal appointment management system.
+This project serves as a functional prototype demonstrating key features of a legal appointment management system, now with a foundational structure for a SaaS model.

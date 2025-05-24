@@ -11,8 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Save, Trash2, Loader2 } from 'lucide-react';
+import Link from 'next/link'; // For navigating back
 
-// Mock Data - In a real app, this would come from a global state or context updated by DashboardPage
+
+// Mock Data - In a real app, this would come from a global state or context
 const initialLawyers: Lawyer[] = [
   { id: 'lawyer1', name: 'Alice Wonderland', email: 'alice@example.com' },
   { id: 'lawyer2', name: 'Bob The Builder', email: 'bob@example.com' },
@@ -32,13 +34,14 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [firmDetails, setFirmDetails] = useState<LawFirm>(initialFirmDetails);
   const [lawyers, setLawyers] = useState<Lawyer[]>(initialLawyers);
-  const [isClient, setIsClient] = useState(false); // For client-side rendering
+  const [isClient, setIsClient] = useState(false);
 
   const [newLawyerName, setNewLawyerName] = useState('');
   const [newLawyerEmail, setNewLawyerEmail] = useState('');
 
   useEffect(() => {
-    setIsClient(true); // Set to true after component mounts
+    setIsClient(true); 
+    // In a real app, fetch firmDetails and lawyers here if they are not in global state
   }, []);
 
 
@@ -48,16 +51,7 @@ export default function SettingsPage() {
   };
 
   const handleSaveFirmDetails = async () => {
-    // In a real app, this would save to a DB. For mock, we just show a toast.
-    // The state is already updated by handleFirmDetailsChange.
-    try {
-      // await saveFirmDetails(firmDetails); // This would be the service call
-      toast({ title: "Firm Details Updated (Mock)", description: "Successfully saved firm information (locally)." });
-      // fetchData(); // Re-fetch if needed from DB
-    } catch (error) {
-      console.error("Error saving firm details: ", error);
-      toast({ title: "Save Error", description: "Could not save firm details.", variant: "destructive" });
-    }
+    toast({ title: "Firm Details Updated (Mock)", description: "Successfully saved firm information (locally)." });
   };
 
   const handleAddLawyer = async () => {
@@ -69,34 +63,24 @@ export default function SettingsPage() {
        toast({ title: "Error", description: "Please enter a valid email address.", variant: "destructive" });
       return;
     }
-    try {
-      const newLawyer: Lawyer = {
-        id: Date.now().toString(), // Simple ID for mock
-        name: newLawyerName.trim(),
-        email: newLawyerEmail.trim()
-      };
-      setLawyers(prev => [...prev, newLawyer]);
-      setNewLawyerName('');
-      setNewLawyerEmail('');
-      toast({ title: "Lawyer Added (Mock)", description: `${newLawyer.name} has been added (locally).` });
-    } catch (error) {
-       console.error("Error adding lawyer: ", error);
-       toast({ title: "Add Error", description: "Could not add lawyer.", variant: "destructive" });
-    }
+    const newLawyer: Lawyer = {
+      id: Date.now().toString(), 
+      name: newLawyerName.trim(),
+      email: newLawyerEmail.trim()
+    };
+    setLawyers(prev => [...prev, newLawyer]);
+    setNewLawyerName('');
+    setNewLawyerEmail('');
+    toast({ title: "Lawyer Added (Mock)", description: `${newLawyer.name} has been added (locally).` });
   };
 
   const handleDeleteLawyer = async (lawyerId: string) => {
-    try {
-      setLawyers(prev => prev.filter(lawyer => lawyer.id !== lawyerId));
-      toast({ title: "Lawyer Removed (Mock)", description: "Lawyer has been removed (locally)." });
-    } catch (error) {
-      console.error("Error deleting lawyer: ", error);
-      toast({ title: "Delete Error", description: "Could not remove lawyer.", variant: "destructive" });
-    }
+    setLawyers(prev => prev.filter(lawyer => lawyer.id !== lawyerId));
+    toast({ title: "Lawyer Removed (Mock)", description: "Lawyer has been removed (locally)." });
   };
   
-  const dummyAddAppointment = () => { 
-    toast({ title: "Info", description: "Add appointments from the main dashboard."});
+  const dummyAddAppointmentFromSettings = () => { 
+    toast({ title: "Info", description: "Add appointments from the main dashboard. This button is non-functional here."});
   };
 
   if (!isClient) {
@@ -110,9 +94,17 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <AppHeader firmName={firmDetails.name} onAddAppointmentClick={dummyAddAppointment} />
+      <AppHeader 
+        firmName={firmDetails.name} 
+        onAddAppointmentClick={dummyAddAppointmentFromSettings} 
+      />
       <div className="container mx-auto px-4 py-8 flex-grow">
-        <h1 className="text-3xl font-bold text-primary mb-8">Settings</h1>
+        <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-primary">Settings</h1>
+            <Link href="/dashboard" passHref>
+                <Button variant="outline">Back to Dashboard</Button>
+            </Link>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Firm Details Section */}
