@@ -9,8 +9,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { AddAppointmentModal } from '@/components/modals/AddAppointmentModal';
 import { AppointmentDetailsModal } from '@/components/modals/AppointmentDetailsModal';
 import { useToast } from "@/hooks/use-toast";
-import { BarChartBig, CalendarCheck, CalendarClock, Users, Loader2 } from 'lucide-react';
-import { format, parse, startOfDay, isSameDay, addDays, subDays } from 'date-fns';
+import { BarChartBig, CalendarCheck, CalendarClock, Users, Loader2, UserCheck as UserCheckIcon, CalendarDays } from 'lucide-react';
+import { format, parse, startOfDay, isSameDay, addDays, subDays, isFuture } from 'date-fns';
 import { combineDateAndTime } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
@@ -147,6 +147,22 @@ const initialAppointments: Appointment[] = [
         description: 'Internal strategy session for upcoming trial.',
         assignedLawyerId: 'lawyer2',
     }
+  },
+   {
+    id: '8',
+    title: 'Contract Review with Client D',
+    dateTime: combineDateAndTime(addDays(new Date(), 3), '10:00'), // Same day as another appointment
+    description: 'Final review of the service agreement.',
+    clientName: 'Client D',
+    assignedLawyerId: 'lawyer4',
+    formData: {
+      title: 'Contract Review with Client D',
+      date: addDays(new Date(), 3),
+      time: '10:00',
+      description: 'Final review of the service agreement.',
+      clientName: 'Client D',
+      assignedLawyerId: 'lawyer4',
+    }
   }
 ];
 
@@ -163,7 +179,7 @@ export default function DashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [lawyers, setLawyers] = useState<Lawyer[]>(initialLawyers);
   const [lawFirmInfo, setLawFirmInfo] = useState<LawFirm | null>(initialFirmInfo);
-  const [isLoading, setIsLoading] = useState(false); // For mock loading state
+  const [isLoading, setIsLoading] = useState(false); 
 
   const [selectedDateForCalendar, setSelectedDateForCalendar] = useState<Date | undefined>(undefined);
   const [dateForModal, setDateForModal] = useState<Date | undefined>(undefined);
@@ -177,14 +193,13 @@ export default function DashboardPage() {
   const openAddAppointmentModal = useCallback(() => {
     setEditingAppointment(null);
     setIsAddModalOpen(true);
-  }, []); // Dependencies: setEditingAppointment, setIsAddModalOpen (stable from useState)
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).getFirmNameForHeader = () => lawFirmInfo?.name || "Lexis Reminder";
       (window as any).getAddAppointmentClickHandlerForHeader = openAddAppointmentModal;
     }
-    // Cleanup on unmount
     return () => {
         if (typeof window !== 'undefined') {
             delete (window as any).getFirmNameForHeader;
@@ -202,7 +217,7 @@ export default function DashboardPage() {
   }, [dateForModal, appointments]);
 
   const handleSaveAppointment = async (data: AppointmentFormData, id?: string) => {
-    setIsLoading(true); // Simulate async operation
+    setIsLoading(true); 
     try {
       const appointmentDateTime = combineDateAndTime(data.date, data.time);
       const appointmentToSave: Omit<Appointment, 'id'> = {
@@ -258,7 +273,7 @@ export default function DashboardPage() {
       toast({
         title: "Appointment Deleted",
         description: `"${appointmentToDelete.title}" has been removed.`,
-        variant: "default", // Changed from destructive to default for less alarm
+        variant: "default",
       });
       setIsDetailsModalOpen(false);
       setDateForModal(undefined);
@@ -330,7 +345,7 @@ export default function DashboardPage() {
             counts[app.assignedLawyerId].appointments++;
         }
     });
-    return Object.values(counts).filter(c => c.appointments >= 0);
+    return Object.values(counts).filter(c => c.appointments >= 0); // Keep all lawyers for chart
   }, [appointments, lawyers]);
 
   const barChartConfig = {
@@ -341,14 +356,38 @@ export default function DashboardPage() {
   } satisfies ChartConfig;
 
   const appointmentStatusData = useMemo(() => [
-    { name: 'Upcoming', value: upcomingAppointmentsCount, fill: 'hsl(var(--chart-2))' },
-    { name: 'Completed', value: pastAppointmentsCount, fill: 'hsl(var(--chart-5))' },
+    { name: 'Upcoming', value: upcomingAppointmentsCount, fill: 'hsl(var(--chart-2))' }, // Teal
+    { name: 'Completed', value: pastAppointmentsCount, fill: 'hsl(var(--chart-5))' }, // Orange
   ], [upcomingAppointmentsCount, pastAppointmentsCount]);
 
   const pieChartConfig = {
     upcoming: { label: 'Upcoming', color: 'hsl(var(--chart-2))' },
     completed: { label: 'Completed', color: 'hsl(var(--chart-5))' },
   } satisfies ChartConfig;
+
+  const leadLawyer = useMemo(() => {
+    if (lawyerAppointmentCounts.length === 0) return null;
+    return lawyerAppointmentCounts.reduce((max, current) => current.appointments > max.appointments ? current : max, lawyerAppointmentCounts[0]);
+  }, [lawyerAppointmentCounts]);
+
+  const busiestUpcomingDay = useMemo(() => {
+    const upcomingAppointmentsByDay: { [key: string]: { date: Date, count: number } } = {};
+    appointments
+      .filter(app => isFuture(app.dateTime) || isSameDay(app.dateTime, new Date()))
+      .forEach(app => {
+        const dayKey = format(startOfDay(app.dateTime), 'yyyy-MM-dd');
+        if (!upcomingAppointmentsByDay[dayKey]) {
+          upcomingAppointmentsByDay[dayKey] = { date: startOfDay(app.dateTime), count: 0 };
+        }
+        upcomingAppointmentsByDay[dayKey].count++;
+      });
+
+    const daysArray = Object.values(upcomingAppointmentsByDay);
+    if (daysArray.length === 0) return null;
+    
+    return daysArray.reduce((busiest, current) => current.count > busiest.count ? current : busiest, daysArray[0]);
+  }, [appointments]);
+
 
   if (isLoading) {
     return (
@@ -414,84 +453,77 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-           <Card className="shadow-lg">
+        <section className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+           <Card className="shadow-lg col-span-1 sm:col-span-2 lg:col-span-1">
             <CardHeader>
-              <CardTitle className="text-lg text-primary">Appointments per Lawyer</CardTitle>
-              <CardDescription>Total appointments assigned to each lawyer.</CardDescription>
+              <CardTitle className="text-md text-primary">Lawyer Assignments</CardTitle>
+              <CardDescription className="text-xs">Appts. per lawyer.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-0 px-2 pb-4 min-h-[350px]">
+            <CardContent className="pt-0 px-1 pb-2 min-h-[220px]">
               {lawyerAppointmentCounts.length > 0 ? (
-                <ChartContainer config={barChartConfig} className="min-h-[320px] w-full h-full">
-                  <BarChart accessibilityLayer data={lawyerAppointmentCounts} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <ChartContainer config={barChartConfig} className="min-h-[180px] w-full h-full">
+                  <BarChart accessibilityLayer data={lawyerAppointmentCounts} margin={{ top: 15, right: 15, left: -15, bottom: 0 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="2 2" />
                     <XAxis
                       dataKey="name"
                       tickLine={false}
-                      tickMargin={10}
+                      tickMargin={5}
                       axisLine={false}
                       stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
+                      fontSize={10}
+                      interval={0} // Show all labels if possible
                     />
                     <YAxis
                       stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
+                      fontSize={10}
                       tickLine={false}
                       axisLine={false}
                       allowDecimals={false}
+                      width={20}
                     />
                     <ChartTooltip
-                      cursor={{ fill: "hsl(var(--secondary))", radius: 4}}
-                      content={<ChartTooltipContent hideLabel indicator="dot" />}
+                      cursor={{ fill: "hsl(var(--secondary))", radius: 3}}
+                      content={<ChartTooltipContent hideLabel indicator="dot" className="text-xs p-1.5"/>}
                     />
-                    <Bar dataKey="appointments" fill="var(--color-appointments)" radius={[4, 4, 0, 0]} barSize={40} />
+                    <Bar dataKey="appointments" fill="var(--color-appointments)" radius={[3, 3, 0, 0]} barSize={15} />
                   </BarChart>
                 </ChartContainer>
               ) : (
-                <p className="text-muted-foreground text-center py-8">No lawyer assignments to display.</p>
+                <p className="text-muted-foreground text-center py-6 text-sm">No assignments.</p>
               )}
             </CardContent>
           </Card>
-           <Card className="shadow-lg">
+           <Card className="shadow-lg col-span-1 sm:col-span-2 lg:col-span-1">
             <CardHeader>
-              <CardTitle className="text-lg text-primary">Appointment Status</CardTitle>
-              <CardDescription>Overview of upcoming vs. completed events.</CardDescription>
+              <CardTitle className="text-md text-primary">Appointment Status</CardTitle>
+              <CardDescription className="text-xs">Upcoming vs. completed.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-0 flex justify-center items-center pb-4 min-h-[350px]">
+            <CardContent className="pt-0 flex justify-center items-center pb-2 min-h-[220px]">
               {totalAppointments > 0 ? (
-                <ChartContainer config={pieChartConfig} className="min-h-[320px] w-full h-full aspect-square">
-                  <PieChart accessibilityLayer>
-                    <ChartTooltip content={<ChartTooltipContent hideLabel nameKey="name" />} />
+                <ChartContainer config={pieChartConfig} className="min-h-[180px] w-full h-full aspect-square">
+                  <PieChart accessibilityLayer margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                    <ChartTooltip content={<ChartTooltipContent hideLabel nameKey="name" className="text-xs p-1.5"/>} />
                     <Pie
                       data={appointmentStatusData}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={120}
-                      innerRadius={60}
+                      outerRadius={70}
+                      innerRadius={35}
                       labelLine={false}
-                      label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                        const RADIAN = Math.PI / 180;
-                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                        return (
-                          <text x={x} y={y} fill="hsl(var(--primary-foreground))" textAnchor="middle" dominantBaseline="central" fontSize={14}>
-                            {`${(percent * 100).toFixed(0)}%`}
-                          </text>
-                        );
-                      }}
+                      label={({ percent, name }) => `${(percent * 100).toFixed(0)}%`}
+                      
                     >
                       {appointmentStatusData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
                     <Legend content={({ payload }) => (
-                        <div className="flex justify-center items-center gap-4 mt-4 text-sm">
+                        <div className="flex flex-wrap justify-center items-center gap-x-3 gap-y-1 mt-2 text-xs">
                             {payload?.map((entry: any, index: number) => (
-                                <div key={`legend-${index}`} className="flex items-center gap-1.5">
-                                    <span style={{ backgroundColor: entry.color }} className="w-3 h-3 rounded-full inline-block"></span>
+                                <div key={`legend-${index}`} className="flex items-center gap-1">
+                                    <span style={{ backgroundColor: entry.color }} className="w-2 h-2 rounded-full inline-block"></span>
                                     <span>{entry.value} ({appointmentStatusData.find(d => d.name === entry.value)?.value})</span>
                                 </div>
                             ))}
@@ -500,10 +532,51 @@ export default function DashboardPage() {
                   </PieChart>
                 </ChartContainer>
               ) : (
-                <p className="text-muted-foreground text-center py-8">No appointments to display status for.</p>
+                <p className="text-muted-foreground text-center py-6 text-sm">No appointments.</p>
               )}
             </CardContent>
           </Card>
+          {leadLawyer && leadLawyer.appointments > 0 ? (
+            <StatCard 
+              title="Lead Lawyer" 
+              value={leadLawyer.name}
+              icon={UserCheckIcon}
+              description={`${leadLawyer.appointments} appointments`}
+              className="col-span-1 sm:col-span-1 lg:col-span-1"
+            />
+          ) : (
+             <Card className="shadow-lg col-span-1 sm:col-span-1 lg:col-span-1">
+                <CardHeader>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Lead Lawyer</CardTitle>
+                    <UserCheckIcon className="h-5 w-5 text-accent" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-primary">-</div>
+                    <p className="text-xs text-muted-foreground pt-1">No assignments yet</p>
+                </CardContent>
+            </Card>
+          )}
+          {busiestUpcomingDay && busiestUpcomingDay.count > 0 ? (
+             <StatCard 
+              title="Busiest Upcoming Day" 
+              value={format(busiestUpcomingDay.date, 'MMM d, yyyy')}
+              icon={CalendarDays}
+              description={`${busiestUpcomingDay.count} appointments`}
+              className="col-span-1 sm:col-span-1 lg:col-span-1"
+            />
+          ) : (
+            <Card className="shadow-lg col-span-1 sm:col-span-1 lg:col-span-1">
+                <CardHeader>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Busiest Upcoming Day</CardTitle>
+                    <CalendarDays className="h-5 w-5 text-accent" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-primary">-</div>
+                    <p className="text-xs text-muted-foreground pt-1">No upcoming events</p>
+                </CardContent>
+            </Card>
+          )}
+
         </section>
       </div>
 
@@ -534,5 +607,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
