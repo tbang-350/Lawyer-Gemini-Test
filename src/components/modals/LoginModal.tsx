@@ -63,7 +63,8 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
             <LogIn className="mr-2 h-5 w-5" /> Access Your Dashboard
           </DialogTitle>
           <DialogDescription>
-            Enter your credentials below to continue. (Any email/password will work for this demo)
+            Enter your credentials. (This is a demo - any email/password will work).
+            For new firm sign-ups, a dedicated onboarding process will be available in future versions.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
