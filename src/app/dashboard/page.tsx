@@ -1,17 +1,15 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Appointment, AppointmentFormData, Lawyer, LawFirm } from '@/types';
-// Note: AppHeader will be handled by the layout for /dashboard
-// import { AppHeader } from '@/components/common/AppHeader'; 
 import { StatCard } from '@/components/dashboard/StatCard';
 import { UpcomingAppointments } from '@/components/dashboard/UpcomingAppointments';
 import { Calendar } from '@/components/ui/calendar';
 import { AddAppointmentModal } from '@/components/modals/AddAppointmentModal';
 import { AppointmentDetailsModal } from '@/components/modals/AppointmentDetailsModal';
 import { useToast } from "@/hooks/use-toast";
-import { BarChartBig, CalendarCheck, CalendarClock, Users } from 'lucide-react';
+import { BarChartBig, CalendarCheck, CalendarClock, Users, Loader2 } from 'lucide-react';
 import { format, parse, startOfDay, isSameDay, addDays, subDays } from 'date-fns';
 import { combineDateAndTime } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -165,37 +163,46 @@ export default function DashboardPage() {
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [lawyers, setLawyers] = useState<Lawyer[]>(initialLawyers);
   const [lawFirmInfo, setLawFirmInfo] = useState<LawFirm | null>(initialFirmInfo);
+  const [isLoading, setIsLoading] = useState(false); // For mock loading state
 
   const [selectedDateForCalendar, setSelectedDateForCalendar] = useState<Date | undefined>(undefined);
   const [dateForModal, setDateForModal] = useState<Date | undefined>(undefined);
-  
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
-  
+
   const { toast } = useToast();
 
-  // Expose firm name for AppHeader in layout
-  // This is a bit of a workaround for mock data. In a real app with context/global state, this would be cleaner.
+  const openAddAppointmentModal = useCallback(() => {
+    setEditingAppointment(null);
+    setIsAddModalOpen(true);
+  }, []); // Dependencies: setEditingAppointment, setIsAddModalOpen (stable from useState)
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).getFirmNameForHeader = () => lawFirmInfo?.name || "Lexis Reminder";
-      (window as any).getAddAppointmentClickHandlerForHeader = () => () => {
-        setEditingAppointment(null); 
-        setIsAddModalOpen(true);
-      };
+      (window as any).getAddAppointmentClickHandlerForHeader = openAddAppointmentModal;
     }
-  }, [lawFirmInfo]);
+    // Cleanup on unmount
+    return () => {
+        if (typeof window !== 'undefined') {
+            delete (window as any).getFirmNameForHeader;
+            delete (window as any).getAddAppointmentClickHandlerForHeader;
+        }
+    };
+  }, [lawFirmInfo, openAddAppointmentModal]);
 
 
   const appointmentsForSelectedDateModal = useMemo(() => {
     if (!dateForModal) return [];
-    return appointments.filter(app => 
+    return appointments.filter(app =>
       isSameDay(app.dateTime, dateForModal)
     ).sort((a,b) => a.dateTime.getTime() - b.dateTime.getTime());
   }, [dateForModal, appointments]);
 
   const handleSaveAppointment = async (data: AppointmentFormData, id?: string) => {
+    setIsLoading(true); // Simulate async operation
     try {
       const appointmentDateTime = combineDateAndTime(data.date, data.time);
       const appointmentToSave: Omit<Appointment, 'id'> = {
@@ -209,50 +216,58 @@ export default function DashboardPage() {
         formData: data,
       };
 
-      if (id) { 
+      if (id) {
         setAppointments(prev => prev.map(app => app.id === id ? { ...appointmentToSave, id } : app));
         toast({
           title: "Appointment Updated",
           description: `"${data.title}" updated successfully.`,
         });
-      } else { 
-        const newId = Date.now().toString(); 
+      } else {
+        const newId = Date.now().toString();
         setAppointments(prev => [...prev, { ...appointmentToSave, id: newId }]);
         toast({
           title: "Appointment Added",
           description: `"${data.title}" scheduled successfully.`,
         });
       }
-      setEditingAppointment(null); 
+      setEditingAppointment(null);
     } catch (error) {
       console.error("Failed to save appointment:", error);
       toast({ title: "Save Error", description: "Could not save appointment.", variant: "destructive"})
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleOpenEditModal = (appointment: Appointment) => {
     setEditingAppointment(appointment);
     setIsDetailsModalOpen(false);
-    setIsAddModalOpen(true); 
+    setIsAddModalOpen(true);
   };
-  
+
   const handleDeleteAppointment = async (appointmentId: string) => {
+    setIsLoading(true);
     const appointmentToDelete = appointments.find(app => app.id === appointmentId);
-    if (!appointmentToDelete) return;
+    if (!appointmentToDelete) {
+        setIsLoading(false);
+        return;
+    }
 
     try {
       setAppointments(prev => prev.filter(app => app.id !== appointmentId));
       toast({
         title: "Appointment Deleted",
         description: `"${appointmentToDelete.title}" has been removed.`,
-        variant: "destructive",
+        variant: "default", // Changed from destructive to default for less alarm
       });
-      setIsDetailsModalOpen(false); 
-      setDateForModal(undefined); 
+      setIsDetailsModalOpen(false);
+      setDateForModal(undefined);
       setSelectedDateForCalendar(undefined);
     } catch (error) {
       console.error("Failed to delete appointment:", error);
       toast({ title: "Delete Error", description: "Could not delete appointment.", variant: "destructive"})
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -262,10 +277,10 @@ export default function DashboardPage() {
       setSelectedDateForCalendar(undefined);
       return;
     }
-    const normalizedDate = startOfDay(date); 
+    const normalizedDate = startOfDay(date);
     setSelectedDateForCalendar(normalizedDate);
     setDateForModal(normalizedDate);
-    
+
     const appsOnDay = appointments.filter(app => isSameDay(app.dateTime, normalizedDate));
     if (appsOnDay.length > 0) {
       setIsDetailsModalOpen(true);
@@ -274,13 +289,13 @@ export default function DashboardPage() {
         title: "No Appointments",
         description: `No appointments scheduled for ${format(normalizedDate, 'PPP')}.`,
       });
-      setIsDetailsModalOpen(false); 
+      setIsDetailsModalOpen(false);
     }
   };
-  
+
   const handleAppointmentClickFromList = (appointment: Appointment) => {
     const appointmentDate = startOfDay(appointment.dateTime);
-    setSelectedDateForCalendar(appointmentDate); 
+    setSelectedDateForCalendar(appointmentDate);
     setDateForModal(appointmentDate);
     setIsDetailsModalOpen(true);
   };
@@ -300,7 +315,7 @@ export default function DashboardPage() {
     });
     return map;
   }, [appointments]);
-  
+
   const daysWithAppointmentsForCalendarModifier = useMemo(() => {
     return Array.from(appointmentsByDay.keys()).map(dateStr => parse(dateStr, 'yyyy-MM-dd', new Date()));
   }, [appointmentsByDay]);
@@ -315,7 +330,7 @@ export default function DashboardPage() {
             counts[app.assignedLawyerId].appointments++;
         }
     });
-    return Object.values(counts).filter(c => c.appointments >= 0); // Keep even if 0 for display
+    return Object.values(counts).filter(c => c.appointments >= 0);
   }, [appointments, lawyers]);
 
   const barChartConfig = {
@@ -335,11 +350,17 @@ export default function DashboardPage() {
     completed: { label: 'Completed', color: 'hsl(var(--chart-5))' },
   } satisfies ChartConfig;
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col flex-grow items-center justify-center p-4">
+        <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+        <p className="text-lg text-muted-foreground">Processing your request...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col flex-grow bg-background"> {/* Removed min-h-screen */}
-      {/* AppHeader is now in dashboard/layout.tsx */}
-      
+    <div className="flex flex-col flex-grow bg-background">
       <div className="container mx-auto px-4 py-8 flex-grow">
         <section className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total Appointments" value={totalAppointments} icon={BarChartBig} description="All scheduled events" />
@@ -356,18 +377,18 @@ export default function DashboardPage() {
                 mode="single"
                 selected={selectedDateForCalendar}
                 onSelect={handleDateSelectOnCalendar}
-                className="rounded-md w-full h-full" 
+                className="rounded-md w-full h-full"
                 classNames={{
                   months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
-                  month: "space-y-4 w-full flex-grow flex flex-col", 
-                  table: "w-full border-collapse flex-grow", 
+                  month: "space-y-4 w-full flex-grow flex flex-col",
+                  table: "w-full border-collapse flex-grow",
                   head_row: "flex w-full",
                   head_cell: "text-muted-foreground rounded-md font-normal text-[0.8rem] flex-1 text-center",
-                  row: "flex w-full mt-1 space-x-1 flex-grow", 
-                  cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1 rounded-md aspect-square", 
+                  row: "flex w-full mt-1 space-x-1 flex-grow",
+                  cell: "text-center text-sm p-0 relative focus-within:relative focus-within:z-20 flex-1 rounded-md aspect-square",
                   day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md",
                   day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary/90",
-                  day_today: "bg-accent/20 text-accent", 
+                  day_today: "bg-accent/20 text-accent",
                 }}
                 modifiers={{ hasAppointmentMarker: daysWithAppointmentsForCalendarModifier }}
                 components={{
@@ -387,7 +408,7 @@ export default function DashboardPage() {
               />
             </div>
           </div>
-          
+
           <div className="lg:col-span-1">
             <UpcomingAppointments appointments={appointments} onAppointmentClick={handleAppointmentClickFromList} />
           </div>
@@ -399,7 +420,7 @@ export default function DashboardPage() {
               <CardTitle className="text-lg text-primary">Appointments per Lawyer</CardTitle>
               <CardDescription>Total appointments assigned to each lawyer.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-0 px-2 pb-4 min-h-[350px]"> 
+            <CardContent className="pt-0 px-2 pb-4 min-h-[350px]">
               {lawyerAppointmentCounts.length > 0 ? (
                 <ChartContainer config={barChartConfig} className="min-h-[320px] w-full h-full">
                   <BarChart accessibilityLayer data={lawyerAppointmentCounts} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
@@ -412,7 +433,7 @@ export default function DashboardPage() {
                       stroke="hsl(var(--muted-foreground))"
                       fontSize={12}
                     />
-                    <YAxis 
+                    <YAxis
                       stroke="hsl(var(--muted-foreground))"
                       fontSize={12}
                       tickLine={false}
@@ -447,8 +468,8 @@ export default function DashboardPage() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={120} // Increased
-                      innerRadius={60} // Increased
+                      outerRadius={120}
+                      innerRadius={60}
                       labelLine={false}
                       label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
                         const RADIAN = Math.PI / 180;
@@ -486,8 +507,8 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      <AddAppointmentModal 
-        isOpen={isAddModalOpen} 
+      <AddAppointmentModal
+        isOpen={isAddModalOpen}
         onClose={() => {
           setIsAddModalOpen(false);
           setEditingAppointment(null);
@@ -498,7 +519,7 @@ export default function DashboardPage() {
         editingAppointmentId={editingAppointment?.id}
       />
       {dateForModal && (
-        <AppointmentDetailsModal 
+        <AppointmentDetailsModal
           isOpen={isDetailsModalOpen}
           onClose={() => {
             setIsDetailsModalOpen(false);
@@ -513,3 +534,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

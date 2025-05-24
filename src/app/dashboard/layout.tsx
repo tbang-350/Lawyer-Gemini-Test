@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppHeader } from '@/components/common/AppHeader';
 
 export default function DashboardLayout({
@@ -10,49 +10,61 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [firmName, setFirmName] = useState("Lexis Reminder");
-  const [addAppointmentHandler, setAddAppointmentHandler] = useState<() => void>(() => () => {});
+  const [actualAddHandler, setActualAddHandler] = useState<(() => void) | null>(null);
 
   useEffect(() => {
-    // This is a mechanism to get props from the child page (DashboardPage)
-    // In a real app with auth/global state, this would be handled more centrally.
-    if (typeof window !== 'undefined' && (window as any).getFirmNameForHeader) {
-      setFirmName((window as any).getFirmNameForHeader());
-    }
-    if (typeof window !== 'undefined' && (window as any).getAddAppointmentClickHandlerForHeader) {
-      setAddAppointmentHandler(() => (window as any).getAddAppointmentClickHandlerForHeader());
-    }
-    // Re-check if the page re-renders and these become available
-    const interval = setInterval(() => {
-        if (typeof window !== 'undefined' && (window as any).getFirmNameForHeader && firmName !== (window as any).getFirmNameForHeader()) {
-            setFirmName((window as any).getFirmNameForHeader());
-        }
-         if (typeof window !== 'undefined' && (window as any).getAddAppointmentClickHandlerForHeader && !addAppointmentHandler) {
-             setAddAppointmentHandler(() => (window as any).getAddAppointmentClickHandlerForHeader());
-        }
-    }, 200);
-    return () => clearInterval(interval);
-  }, [firmName, addAppointmentHandler]);
-  
+    let mounted = true;
 
-  const handleAddAppointmentClick = () => {
-    if(addAppointmentHandler){
-        const handler = addAppointmentHandler as any; // type cast
-        if(typeof handler === 'function') {
-             handler();
-        } else if (typeof handler.call === 'function'){ // check if it's a function that can be called with .call
-            handler.call(null);
-        }
-    }
-  };
+    const updateStatesFromWindow = () => {
+      if (!mounted) return;
 
+      if (typeof window !== 'undefined') {
+        // Firm Name
+        if ((window as any).getFirmNameForHeader) {
+          const newFirmName = (window as any).getFirmNameForHeader();
+          setFirmName(prev => (prev === newFirmName ? prev : newFirmName));
+        }
+
+        // Add Appointment Handler
+        if ((window as any).getAddAppointmentClickHandlerForHeader) {
+          const handlerFromWindow = (window as any).getAddAppointmentClickHandlerForHeader as (() => void);
+          // Only update state if the handler reference has actually changed
+          setActualAddHandler(prevHandler => {
+            if (prevHandler !== handlerFromWindow) {
+              return handlerFromWindow;
+            }
+            return prevHandler;
+          });
+        }
+      }
+    };
+
+    updateStatesFromWindow(); // Initial call to set states
+
+    const intervalId = setInterval(updateStatesFromWindow, 300); // Periodically check for updates
+
+    return () => {
+      mounted = false;
+      clearInterval(intervalId);
+    };
+  }, []); // Empty dependency array ensures this effect runs only once on mount and cleans up on unmount.
+         // The interval handles polling for changes from the window object.
+
+  const handleAddAppointmentClick = useCallback(() => {
+    if (actualAddHandler && typeof actualAddHandler === 'function') {
+      actualAddHandler();
+    }
+  }, [actualAddHandler]); // This callback is memoized and updates if actualAddHandler changes.
 
   return (
     <div className="flex flex-col min-h-screen">
-      <AppHeader 
-        onAddAppointmentClick={handleAddAppointmentClick} 
+      <AppHeader
+        onAddAppointmentClick={handleAddAppointmentClick}
         firmName={firmName}
       />
       <main className="flex-grow flex flex-col">{children}</main>
     </div>
   );
 }
+
+    
